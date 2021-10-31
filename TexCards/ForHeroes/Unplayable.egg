@@ -1,0 +1,61 @@
+<Comment> {
+  "egg-texture-cards -o Unplayable.egg -fps 24 -p 256,256 'TexCards\Shared\Unplayable_00.png' -p 256,256 'TexCards\Shared\Unplayable_01.png'"
+}
+<Texture> Unplayable_01 {
+  "TexCards/Shared/Unplayable_01.png"
+}
+<Texture> Unplayable_00 {
+  "TexCards/Shared/Unplayable_00.png"
+}
+<Group> {
+  <Switch> { 1 }
+  <Scalar> fps { 24 }
+  <VertexPool> vpool {
+    <Vertex> 0 {
+      -0.5 0.5 0
+      <UV> { 0 1 }
+    }
+    <Vertex> 1 {
+      -0.5 -0.5 0
+      <UV> { 0 0 }
+    }
+    <Vertex> 2 {
+      0.5 -0.5 0
+      <UV> { 1 0 }
+    }
+    <Vertex> 3 {
+      0.5 0.5 0
+      <UV> { 1 1 }
+    }
+    <Vertex> 4 {
+      -0.5 0.5 0
+      <UV> { 0 1 }
+    }
+    <Vertex> 5 {
+      -0.5 -0.5 0
+      <UV> { 0 0 }
+    }
+    <Vertex> 6 {
+      0.5 -0.5 0
+      <UV> { 1 0 }
+    }
+    <Vertex> 7 {
+      0.5 0.5 0
+      <UV> { 1 1 }
+    }
+  }
+  <Group> Unplayable_00 {
+    <Polygon> {
+      <RGBA> { 1 1 1 1 }
+      <TRef> { Unplayable_00 }
+      <VertexRef> { 0 1 2 3 <Ref> { vpool } }
+    }
+  }
+  <Group> Unplayable_01 {
+    <Polygon> {
+      <RGBA> { 1 1 1 1 }
+      <TRef> { Unplayable_01 }
+      <VertexRef> { 4 5 6 7 <Ref> { vpool } }
+    }
+  }
+}
