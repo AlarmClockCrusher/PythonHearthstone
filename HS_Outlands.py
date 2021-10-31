@@ -78,7 +78,7 @@ class Trig_BlisteringRot(TrigBoard):
 	#假设攻击力为负数时，召唤物的攻击力为0
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		if minion := self.keeper.summon(LivingRot(self.keeper.Game, self.keeper.ID)):
-			minion.statReset(max(0, self.keeper.attack), self.keeper.health, source=type(self.keeper))
+			self.keeper.setStat(minion, max(0, self.keeper.attack), self.keeper.health, name=BlisteringRot)
 			
 
 class Trig_Magtheridon_Dormant(Trig_Countdown):
@@ -89,7 +89,7 @@ class Trig_Magtheridon_Dormant(Trig_Countdown):
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		game = self.keeper.Game
 		if self.counter < 1:
-			game.killMinion(self.keeper, game.minionsonBoard(1) + game.minionsonBoard(2))
+			game.kill(self.keeper, game.minionsonBoard(1) + game.minionsonBoard(2))
 			game.transform(self.keeper, self.keeper.minionInside, firstTime=False)
 
 
@@ -765,7 +765,7 @@ class TeronGorefiend(Minion):
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		minionsDestroyed = [minion for minion in self.Game.minionsonBoard(self.ID) if minion != self]
 		if minionsDestroyed:
-			self.Game.killMinion(self, minionsDestroyed)
+			self.Game.kill(self, minionsDestroyed)
 			minionsDestroyed = [type(minion) for minion in minionsDestroyed]
 			for trig in self.deathrattles:
 				if isinstance(trig, Death_TeronGorefiend):
@@ -1871,7 +1871,7 @@ class LibramofJustice(Spell):
 	name_CN = "正义圣契"
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		self.equipWeapon(OverdueJustice(self.Game, self.ID))
-		for minion in self.Game.minionsonBoard(3-self.ID): minion.statReset(newHealth=1, source=type(self))
+		self.AOE_SetStat(self.Game.minionsonBoard(3-self.ID), newHealth=1, name=LibramofJustice)
 		
 
 class OverdueJustice(Weapon):
@@ -2597,9 +2597,9 @@ class KelidantheBreaker(Minion):
 		
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		if self.enterHandTurn >= self.Game.numTurn:
-			self.Game.killMinion(self, self.Game.minionsonBoard(self.ID, exclude=self)+self.Game.minionsonBoard(3-self.ID))
+			self.Game.kill(self, self.Game.minionsonBoard(self.ID, exclude=self) + self.Game.minionsonBoard(3 - self.ID))
 		elif target: #Not just drawn this turn and target is designated
-			self.Game.killMinion(self, target)
+			self.Game.kill(self, target)
 		return target
 
 

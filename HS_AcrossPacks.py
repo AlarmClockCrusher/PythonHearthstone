@@ -65,7 +65,7 @@ class Trig_Nightmare_1(TrigBoard):
 		return self.keeper.onBoard and ID == 1
 	
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.keeper.Game.killMinion(self.keeper, self.keeper)
+		self.keeper.Game.kill(self.keeper, self.keeper)
 
 class Trig_Nightmare_2(TrigBoard):
 	signals = ("TurnStarts",)
@@ -73,7 +73,7 @@ class Trig_Nightmare_2(TrigBoard):
 		return self.keeper.onBoard and ID == 2
 
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.keeper.Game.killMinion(self.keeper, self.keeper)
+		self.keeper.Game.kill(self.keeper, self.keeper)
 
 
 class Trig_ManaWyrm(TrigBoard):

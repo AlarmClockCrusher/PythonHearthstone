@@ -207,7 +207,7 @@ class Hand_Deck:
 	def holdingCardfromAnotherClass(self, ID, exclude=None):
 		Class = self.Game.heroes[ID].Class
 		return any(Class not in card.Class and card.Class != "Neutral" and card != exclude for card in self.hands[ID])
-						
+
 	# 抽牌一次只能一张，需要废除一次抽多张牌的功能，因为这个功能都是用于抽效果指定的牌。但是这些牌中如果有抽到时触发的技能，可能会导致马上抽牌把列表后面的牌提前抽上来
 	# 如果这个规则是正确的，则在牌库只有一张夺灵者哈卡的堕落之血时，抽到这个法术之后会立即额外抽牌，然后再塞进去两张堕落之血，那么第二次抽法术可能会抽到新洗进去的堕落之血。
 	# Damage taken due to running out of card will keep increasing. Refilling the deck won't reset the damage you take next time you draw from empty deck
@@ -386,7 +386,7 @@ class Hand_Deck:
 			self.Game.summonfrom(minion, ID, -1, None, source='H')
 			minion.loseAbilityInhand()
 		for minion in minions:
-			self.Game.killMinion(minion, minion)
+			self.Game.kill(minion, minion)
 		self.Game.gathertheDead()
 		if not noSignal:
 			for minion in minions:
@@ -497,33 +497,20 @@ class Hand_Deck:
 
 from DB_CardPools import *
 
-Default1 = []
+Default1 = [FindtheImposter, Backstab, Preparation, Shadowstep, BladedCultist, DeadlyPoison, SinisterStrike, Swashburglar, ColdBlood, PatientAssassin, VanessaVanCleef,
+			PlagueScientist, SI7Agent, Assassinate, AssassinsBlade, TombPillager, BlackjackStunner, Spymistress, Ambush, AshtongueSlayer,
+			Bamboozle, DirtyTricks, ShadowjewelerHanar, Akama, GreyheartSage, CursedVagrant, BrainFreeze, WandThief, PotionofIllusion, JandiceBarov, JandiceBarov,
+			SecretPassage, Plagiarize, Coerce, SelfSharpeningSword, VulperaToxinblade, InfiltratorLilian, ShiftySophomore, Steeldancer, CuttingClass,
+			PrizePlunderer, FoxyFraud, ShadowClone, SweetTooth, SecretPassage, SavoryDeviateDelight, Swindle, TenwuoftheRedSmoke, CloakofShadows, TicketMaster, MalevolentStrike, GrandEmpressShekzara,
+			KeywardenIvory, Shenanigans, SparkjoyCheat, Yoink, EfficientOctobot, WickedStabRank1, FieldContact,
+			SwinetuskShank, ApothecaryHelbrim, OilRigAmbusher, ScabbsCutterbutter, SavoryDeviateDelight, WaterMoccasin, ShroudofConcealment, SI7Extortion, Garrote, MaestraoftheMasquerade,
+			CounterfeitBlade, LoanShark, SI7Operative, SketchyInformation, SI7Informant, SI7Assassin, BlackwaterCutlass, Parrrley, ]
 
-Default2 = []
-
-[EnchantedRaven, PoweroftheWild, WildGrowth, NordrassilDruid, SouloftheForest,
-			DruidoftheClaw, ForceofNature, MenagerieWarden, Nourish, ArchsporeMsshifn,
-			ImprisonedSatyr, Germination, YsielWindsinger,
-			RunicCarvings, AdorableInfestation, ShandoWildclaw,
-			KiriChosenofElune, CenarionWard,
-			Guidance, LivingSeedRank1, MarkoftheSpikeshell,
-			PridesFury, DeviateDreadfang, BestinShell, SheldrasMoontree, 			]
-
-
-[ArcaneShot, Tracking, Webspinner, ExplosiveTrap, FreezingTrap, HeadhuntersHatchet, QuickShot, ScavengingHyena, SelectiveBreeder, SnakeTrap,
-				Bearshark, DeadlyShot, DireFrenzy, SavannahHighmane, Helboar, ImprisonedFelmaw, PackTactics, ScavengersIngenuity, AugmentedPorcupine,
-				ZixorApexPredator, MokNathalLion, ScrapShot, BeastmasterLeoroxx, NagrandSlam, TrueaimCrescent, BloodHerald, AdorableInfestation,
-				CarrionStudies, Overwhelm, Wolpertinger, BloatedPython, ProfessorSlate, ShandoWildclaw, KroluskBarkstripper, MysteryWinner,
-				DancingCobra, DontFeedtheAnimals, OpentheCages, PettingZoo, RinlingsRifle, TramplingRhino, MaximaBlastenheimer, DarkmoonTonk, JewelofNZoth, FelfireDeadeye,
-				ResizingPouch, BolaShot, Saddlemaster, SunscaleRaptor, WoundPrey, KolkarPackRunner, ProspectorsCaravan, TameBeastRank1, PackKodo, TavishStormpike,
-				PiercingShot, WarsongWrangler, BarakKodobane, Serpentbloom, SindoreiScentfinder, VenomstrikeBow, DevouringSwarm, LeatherworkingKit, AimedShot, RammingMount,
-				StormwindPiper, RodentNest, ImportedTarantula, TheRatKing, RatsofExtraordinarySize, 			]
-
-[BabblingBook, ShootingStar, SnapFreeze, Arcanologist, FallenHero, ArcaneIntellect, ConeofCold, Counterspell, IceBarrier, MirrorEntity,
-				Fireball, WaterElemental_Core, AegwynntheGuardian, EtherealConjurer, ColdarraDrake, Flamestrike, Evocation, FontofPower, ApexisSmuggler, AstromancerSolarian,
-				IncantersFlow, Starscryer, ImprisonedObserver, NetherwindPortal, ApexisBlast, DeepFreeze, BrainFreeze, LabPartner, WandThief, CramSession,
-				Combustion, Firebrand, PotionofIllusion, JandiceBarov, MozakiMasterDuelist, WyrmWeaver, DevolvingMissiles, PrimordialStudies, TrickTotem, RasFrostwhisper,
-				ConfectionCyclone, DeckofLunacy, GameMaster, RiggedFaireGame, OccultConjurer, RingToss, FireworkElemental, SaygeSeerofDarkmoon, MaskofCThun, GrandFinale,
-				GlacierRacer, ConjureManaBiscuit, KeywardenIvory, ImprisonedPhoenix, FlurryRank1, RunedOrb, Wildfire, ArcaneLuminary, OasisAlly, Rimetongue,
-				RecklessApprentice, RefreshingSpringWater, VardenDawngrasp, MordreshFireEye, FrostweaveDungeoneer, ShatteringBlast, Floecaster, HotStreak, FirstFlame, CelestialInkSet,
-				Ignite, PrestorsPyromancer, FireSale, SanctumChandler, ClumsyCourier, GrandMagusAntonidas, 			],
+Default2 = [RaidtheDocks, BloodsailDeckhand, ShieldSlam, Whirlwind, CruelTaskmaster, Execute, Slam, WarsongCommander, Armorsmith, FrothingBerserker,
+			Brawl, Shieldmaiden, Gorehowl, GrommashHellscream, ImprisonedGanarg, SwordandBoard, CorsairCache, Bladestorm,
+			BonechewerRaider, BulwarkofAzzinoth, WarmaulChallenger, KargathBladefist, BloodboilBrute, Coerce, CuttingClass,
+			AthleticStudies, ShieldofHonor, InFormation, CeremonialMaul, LordBarov, Playmaker, ReapersScythe, Troublemaker, Rattlegore,
+			RingmastersBaton, StageHand, FeatofStrength,
+			NitroboostPoison, SpikedWheel, Ironclad, Barricade, WarsongEnvoy, BulkUp, ConditioningRank1, Rokara, OutridersAxe, Rancor,
+			WhirlingCombatant, MorshanElite, OverlordSaurfang, ManatArms, KreshLordofTurtling, Provoke, ShiverTheirTimbers, HarborScamp,
+			CargoGuard, HeavyPlate, StormwindFreebooter, RemoteControlledGolem, CowardlyGrunt, Lothar, MantheCannons, DefiasCannoneer, BlacksmithHammer, ]

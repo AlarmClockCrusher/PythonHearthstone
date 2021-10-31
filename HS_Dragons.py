@@ -368,7 +368,7 @@ class Trig_Bandersmosh_PreShifting(TrigHand):
 
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		minion = numpyChoice(self.rngPool("Legendary Minions"))(self.keeper.Game, self.keeper.ID)
-		minion.statReset(5, 5, source=type(self.keeper))
+		self.keeper.setStat(minion, 5, 5, name=Bandersmosh)
 		ManaMod(minion, to=5).applies()
 		trig = Trig_Bandersmosh_KeepShifting(minion)
 		trig.connect()
@@ -382,7 +382,7 @@ class Trig_Bandersmosh_KeepShifting(TrigBoard):
 		
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		minion = numpyChoice(self.rngPool("Legendary Minions"))(self.keeper.Game, self.keeper.ID)
-		minion.statReset(5, 5, source=type(self.keeper))
+		self.keeper.setStat(minion, 5, 5, name=Bandersmosh)
 		ManaMod(minion, to=5).applies()
 		trig = Trig_Bandersmosh_KeepShifting(minion) #新的扳机保留这个变色龙的原有reference.在对方无手牌时会变回起始的变色龙。
 		trig.connect()
@@ -1509,8 +1509,7 @@ class Veranus(Minion):
 	name_CN = "维拉努斯"
 	
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		for minion in self.Game.minionsonBoard(3-self.ID):
-			minion.statReset(False, 1, source=type(self))
+		self.AOE_SetStat(self.Game.minionsonBoard(3-self.ID), newHealth=1, name=Veranus)
 		
 		
 class ArcaneBreath(Spell):
@@ -2187,7 +2186,7 @@ class GalakrondtheUnspeakable(Galakrond_Hero):
 		
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		minions = self.Game.minionsAlive(3-self.ID)
-		if minions: self.Game.killMinion(self, numpyChoice(minions))
+		if minions: self.Game.kill(self, numpyChoice(minions))
 		
 		
 class GalakrondtheApocalypes_Priest(Galakrond_Hero):
@@ -2203,7 +2202,7 @@ class GalakrondtheApocalypes_Priest(Galakrond_Hero):
 		minions = self.Game.minionsAlive(3 - self.ID)
 		if minions:
 			targets = numpyChoice(minions, min(2, len(minions)), replace=False)
-			self.Game.killMinion(self, targets)
+			self.Game.kill(self, targets)
 		
 	
 class GalakrondAzerothsEnd_Priest(Galakrond_Hero):
@@ -2219,7 +2218,7 @@ class GalakrondAzerothsEnd_Priest(Galakrond_Hero):
 		minions = self.Game.minionsAlive(3 - self.ID)
 		if minions:
 			targets = numpyChoice(minions, min(4, len(minions)), replace=False)
-			self.Game.killMinion(self, targets)
+			self.Game.kill(self, targets)
 		self.equipWeapon(DragonClaw(self.Game, self.ID))
 		
 

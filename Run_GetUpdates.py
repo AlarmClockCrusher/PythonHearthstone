@@ -39,7 +39,7 @@ def downloadRemoteInventory_CheckAgainstLocal():
 	subprocess.Popen(["Patch.bat"], shell=True)
 	genUpdateBat_byCheckingAgainstInventory()
 	subprocess.Popen(["Patch.bat"], shell=True)
-
+	#os.remove("Patch.bat")
 
 
 if __name__ == "__main__":

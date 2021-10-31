@@ -236,7 +236,7 @@ class Trig_PressurePlate(Trig_Secret):
 		
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		minions = self.keeper.Game.minionsAlive(3-self.keeper.ID)
-		if minions: self.keeper.Game.killMinion(self.keeper, numpyChoice(minions))
+		if minions: self.keeper.Game.kill(self.keeper, numpyChoice(minions))
 		
 		
 class Trig_DesertSpear(TrigBoard):
@@ -336,7 +336,7 @@ class Trig_HighPriestAmet(TrigBoard):
 		return self.keeper.onBoard and subject.ID == self.keeper.ID and subject != self.keeper and self.keeper.health > 0
 
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		subject.statReset(False, newHealth=self.keeper.health, source=type(self.keeper))
+		self.keeper.setStat(subject, newHealth=self.keeper.health, name=HighPriestAmet)
 		
 		
 class Trig_BazaarBurglary(Trig_Quest):
@@ -498,7 +498,7 @@ class MoguCultist(Minion):
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		minions = self.Game.minionsonBoard(self.ID)
 		if len(minions) == 7 and all(minion.name == "Mogu Cultist" for minion in minions):
-			self.Game.killMinion(None, minions)
+			self.Game.kill(None, minions)
 			self.Game.gathertheDead()
 			self.summon(HighkeeperRa(self.Game, self.ID))
 		
@@ -895,7 +895,7 @@ class FacelessLurker(Minion):
 	name_CN = "无面潜伏者"
 	
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		self.statReset(False, newHealth=self.health * 2, source=type(self))
+		self.setStat(self, newHealth=self.health * 2, name=FacelessLurker)
 		
 		
 class DesertObelisk(Minion):
@@ -1728,7 +1728,7 @@ class Subdue(Spell):
 		return target.category == "Minion" and target.onBoard
 		
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		if target: target.statReset(1, 1, source=type(self))
+		if target: self.setStat(target, 1, 1, name=Subdue)
 		return target
 		
 		
@@ -1889,7 +1889,7 @@ class WretchedReclaimer(Minion):
 		if target:
 			minion = type(target)(self.Game, target.ID)
 			targetID, pos = target.ID, target.pos
-			self.Game.killMinion(self, target)
+			self.Game.kill(self, target)
 			self.Game.gathertheDead() #强制死亡需要在此插入死亡结算，并让随从离场
 			#如果目标之前是第4个(pos=3)，则场上最后只要有3个随从或者以下，就会召唤到最右边。
 			#如果目标不在场上或者是第二次生效时已经死亡等被初始化，则position=-2会让新召唤的随从在场上最右边。
@@ -1930,7 +1930,7 @@ class PlagueofDeath(Spell):
 		minions = self.Game.minionsonBoard(1) + self.Game.minionsonBoard(2)
 		for minion in minions:
 			minion.getsSilenced()
-		self.Game.killMinion(self, minions)
+		self.Game.kill(self, minions)
 		
 		
 class BazaarBurglary(Quest):
@@ -2117,7 +2117,7 @@ class AnkatheBuried(Minion):
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		for card in self.Game.Hand_Deck.hands[self.ID][:]:
 			if card.category == "Minion" and card.deathrattles:
-				card.statReset(1, 1, source=type(self))
+				self.setStat(card, 1, 1, name=AnkatheBuried)
 				ManaMod(card, to=1).applies()
 		
 
@@ -2273,10 +2273,10 @@ class PlagueofFlames(Spell):
 	name_CN = "火焰之灾祸"
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		num = len((ownMinions := self.Game.minionsonBoard(self.ID)))
-		self.Game.killMinion(self, ownMinions)
+		self.Game.kill(self, ownMinions)
 		if num > 0 and (enemyMinions := self.Game.minionsonBoard(3-self.ID)):
 			minions = numpyChoice(enemyMinions, min(num, len(enemyMinions)), replace=False)
-			self.Game.killMinion(self, minions)
+			self.Game.kill(self, minions)
 		
 		
 class SinisterDeal(Spell):
@@ -2349,7 +2349,7 @@ class EVILRecruiter(Minion):
 		if target:
 			#假设消灭跟班之后会进行强制死亡结算，把跟班移除之后才召唤
 			#假设召唤的恶魔是在EVIL Recruiter的右边，而非死亡的跟班的原有位置
-			self.Game.killMinion(self, target)
+			self.Game.kill(self, target)
 			self.Game.gathertheDead()
 			self.summon(EVILDemon(self.Game, self.ID))
 		return target
@@ -2386,7 +2386,7 @@ class Impbalming(Spell):
 		
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		if target:
-			self.Game.killMinion(self, target)
+			self.Game.kill(self, target)
 			self.shuffleintoDeck([WorthlessImp_Uldum(self.Game, self.ID) for _ in (0, 1, 2)])
 		return target
 		
@@ -2560,7 +2560,7 @@ class PlagueofWrath(Spell):
 	description = "Destroy all damaged minions"
 	name_CN = "愤怒之灾祸"
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		self.Game.killMinion(self, [minion for minion in self.Game.minionsonBoard(1) + self.Game.minionsonBoard(2) if minion.health < minion.health_max])
+		self.Game.kill(self, [minion for minion in self.Game.minionsonBoard(1) + self.Game.minionsonBoard(2) if minion.health < minion.health_max])
 		
 		
 class Armagedillo(Minion):
@@ -2634,7 +2634,7 @@ class YourLackeysareAlways44(GameAura_AlwaysOn):
 	def applies(self, subject):
 		if self.applicable(subject) and (subject.attack_0 != 4 or subject.health_0 != 4):
 			subject.attack_0, subject.health_0 = 4, 4  # 需要先把随从的白字身材变为4/4
-			subject.statReset(4, 4)
+			self.card.setStat(subject, 4, 4, name=DarkPharaohTekahn)
 
 	# 暂时假设跟班被对方控制后仍为4/4
 	def auraAppears(self):

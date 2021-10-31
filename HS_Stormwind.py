@@ -945,8 +945,7 @@ class RustrotViper(Minion):
 	name_CN = "锈烂蝰蛇"
 	
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		for weapon in self.Game.weapons[3 - self.ID]:
-			weapon.destroyed()
+		self.Game.kill(self, self.Game.weapons[3 - self.ID])
 
 
 class TravelingMerchant(Minion):
@@ -2347,7 +2346,7 @@ class PurifiedShard(Spell):
 	description = "Destroy the enemy hero"
 	name_CN = "净化的碎片"
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		self.Game.killMinion(self, self.Game.heroes[3-self.ID])
+		self.Game.kill(self, self.Game.heroes[3 - self.ID])
 
 
 class ShardoftheNaaru(Spell):
@@ -2616,7 +2615,7 @@ class Bleed(Spell):
 	def text(self): return self.calcDamage(2)
 
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		self.dealsDamage(self.Game.heroes[3 - self.ID], self.calcDamage(2))
+		self.dealsDamage(self.Game.heroes[3-self.ID], self.calcDamage(2))
 
 
 class MaestraoftheMasquerade(Minion):
@@ -2707,7 +2706,7 @@ class SI7Assassin(Minion):
 	
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		if target and self.Game.Counters.numCardsPlayedThisTurn[self.ID] > 0:
-			self.Game.killMinion(self, target)
+			self.Game.kill(self, target)
 		return target
 
 
@@ -2883,8 +2882,7 @@ class TinyToys(Spell):
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		minions = [minion(self.Game, self.ID) for minion in numpyChoice(self.rngPool("5-Cost Minions to Summon"), 4, replace=True)]
 		self.summon(minions)
-		for minion in minions:
-			if minion.onBoard: minion.statReset(2, 2, source=type(self))
+		self.AOE_SetStat([minion for minion in minions if minion.onBoard], 2, 2, name=TinyToys)
 
 
 """Warlock Cards"""
@@ -3273,7 +3271,7 @@ class GolakkaGlutton(Minion):
 
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		if target:
-			self.Game.killMinion(self, target)
+			self.Game.kill(self, target)
 			self.giveEnchant(self, 1, 1, name=GolakkaGlutton)
 		return target
 
@@ -3565,7 +3563,7 @@ class RighteousDefense(Spell):
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		if target:
 			attLost, healthLost = max(target.attack - 1, 0), max(target.health - 1, 0)
-			target.statReset(1, 1, source=type(self), name=RighteousDefense)
+			self.setStat(target, 1, 1, name=RighteousDefense)
 			if (attLost or healthLost) and (minions := [card for card in self.Game.Hand_Deck.hands[self.ID] if card.category == "Minion"]):
 				self.giveEnchant(numpyChoice(minions), attLost, healthLost, name=RighteousDefense, add2EventinGUI=False)
 		return target
@@ -3600,8 +3598,8 @@ class WealthRedistributor(Minion):
 				elif att == highest: minions_Highest.append(minion)
 				if att < lowest: minions_Lowest, lowest = [minion], att
 				elif att == lowest: minions_Lowest.append(minion)
-			numpyChoice(minions_Highest).statReset(lowest, source=type(self), name=WealthRedistributor)
-			numpyChoice(minions_Lowest).statReset(highest, source=type(self), name=WealthRedistributor)
+			self.setStat(numpyChoice(minions_Highest), lowest, name=WealthRedistributor)
+			self.setStat(numpyChoice(minions_Lowest), highest, name=WealthRedistributor)
 
 
 #Priest Cards

@@ -445,7 +445,7 @@ class Game:
 			if minion.btn: minion.btn.effectChangeAni()
 			minion.decideAttChances_base()
 
-	def killMinion(self, subject, target):
+	def kill(self, subject, target):
 		if isinstance(target, (list, tuple, numpy.ndarray)):
 			if len(target) > 0:
 				self.add2EventinGUI(subject, target, textTarget='X', colorTarget=red)
@@ -472,7 +472,7 @@ class Game:
 		if (isMinion := target in self.minions[ID]) or target in self.weapons[target.ID]:
 			self.add2EventinGUI(summoner, (target, newTarget))
 			newTarget.pos, newTarget.creator = target.pos, type(summoner) if summoner else None
-			target.disappears(deathrattlesStayArmed=False, disappearResponse=False)
+			target.disappears(disappearResponse=False)
 			#removeMinionorWeapon invokes sortSeq()
 			newTarget.seq = len(self.minions[1]) + len(self.minions[2]) + len(self.weapons[1]) + len(self.weapons[2])
 			self.removeMinionorWeapon(target, sortPos=False, animate=False) #No need to resort the pos of minions
@@ -499,12 +499,12 @@ class Game:
 			if isinstance(target, list):
 				#if self.GUI and subject: self.GUI.AOEAni(subject, target, ['○']*len(target), color="grey46")
 				for obj in target:
-					obj.disappears(deathrattlesStayArmed=False)
+					obj.disappears()
 					self.removeMinionorWeapon(obj)
 			else:
 				#if self.GUI and subject: self.GUI.targetingEffectAni(subject, target, '○', color="grey46")
 				if target.onBoard:
-					target.disappears(deathrattlesStayArmed=False)
+					target.disappears()
 					self.removeMinionorWeapon(target)
 				elif target.inHand: self.Hand_Deck.extractfromHand(target.ID, target) #如果随从在手牌中则将其丢弃
 
@@ -541,7 +541,7 @@ class Game:
 		earths = self.earthsonBoard(ID)
 		if len(earths) >= number:
 			for i in range(number):
-				self.killMinion(subject, earths[i])
+				self.kill(subject, earths[i])
 				self.gathertheDead()
 			return True
 		return False
@@ -642,7 +642,7 @@ class Game:
 		elif target.onBoard: #If the minion is on board.
 			if self.space(3-target.ID) < 1: target.dead = True
 			else:
-				target.disappears(deathrattlesStayArmed=False) #随从控制权的变更会注销其死亡扳机，随从会在另一方重新注册其所有死亡扳机
+				target.disappears() #随从控制权的变更会注销其死亡扳机，随从会在另一方重新注册其所有死亡扳机
 				self.minions[target.ID].remove(target)
 				target.ID = 3 - target.ID
 				self.minions[target.ID].append(target)
@@ -737,8 +737,9 @@ class Game:
 			#Pop all the weapons until no weapon or the latest weapon equipped.
 			while self.weapons[ID]:
 				if self.weapons[ID][0].health < 1 or self.weapons[ID][0].dead:
-					self.weapons[ID][0].destroyed() #武器的被摧毁函数，负责其onBoard, dead和英雄风怒，攻击力和场上扳机的移除等。
 					weapon = self.weapons[ID].pop(0)
+					weapon.dead = True
+					weapon.disappears(deathrattlesStayArmed=True)
 					self.Counters.weaponsDestroyedThisGame[weapon.ID].append(type(weapon))
 					self.tempDeads[0].append(weapon)
 					self.tempDeads[1].append(weapon.attack)
@@ -809,7 +810,7 @@ class Game:
 		while True:
 			rebornMinions = []
 			if not self.deads[0]: break #If no minions are dead, then stop the loop
-			armedTrigs_WhenDies = self.armedTrigs("MinionDies") + self.armedTrigs("WeaponDestroyed") + self.armedTrigs("AmuletDestroys")
+			armedTrigs_WhenDies = self.armedTrigs("MinionDies") + self.armedTrigs("WeaponDestroys") + self.armedTrigs("AmuletDestroys")
 			armedTrigs_AfterDied = self.armedTrigs("MinionDied") + self.armedTrigs("AmuletDestroyed")
 			while self.deads != [[], []]:
 				self.resolvingDeath = True
@@ -1161,8 +1162,7 @@ class Game:
 	#消灭你的旧武器，新武器进场，这把新武器设置为新武器，并触发扳机。
 	def equipWeapon(self, weapon, creator=None):
 		ID, weapon.creator = weapon.ID, creator
-		if self.weapons[ID]: #将所有目前装备着的武器设为dead，它们由后续的Game.gathertheDead()处理
-			for obj in self.weapons[ID]: obj.destroyed() #如果此时英雄正在攻击，则角斗士的长弓仍然可以提供免疫，因为它是依靠扳机的。
+		for obj in self.weapons[ID]: obj.dead = True #角斗士的长弓仍然可以为攻击过程中的英雄提供免疫，因为它是依靠扳机进行判定的。
 		self.weapons[ID].append(weapon)
 
 		if self.GUI: self.GUI.weaponEquipAni(weapon)
@@ -1224,12 +1224,11 @@ class Game:
 		#先把手牌中的这些牌移出
 		HD.hands[subject.ID].remove(subject)
 		subject.leavesHand()
-		self.Manas.manas[ID] -= 1
+		self.Manas.manas[ID] -= 1 #不调用Manas.payManaCost
 		if GUI:
 			GUI.seqHolder[-1].append(GUI.FUNC(GUI.heroZones[ID].drawMana, self.Manas.manas[ID], self.Manas.manasUpper[ID],
 											  self.Manas.manasLocked[ID], self.Manas.manasOverloaded[ID]))
 			GUI.cardsLeaveHandAni([subject], ID, linger=True)
-		#self.sendSignal("ManaPaid", ID, subject, None, 1, "Trade")
 		if self.effects[ID]["Trade Discovers Instead"] > 0:
 			AuctioneerJaxon(self, ID).discoverfromList(AuctioneerJaxon, '')
 		else: HD.drawCard(ID)

@@ -129,21 +129,18 @@ class Manas:
 	def cardCostsHealth(self, subject):
 		return subject.effects["Cost Health Instead"] > 0 # or (subject.category == "Spell" and self.effects[subject.ID]["Spells Cost Health Instead"] > 0)
 		
-	def payManaCost(self, subject, mana):
-		if mana > 0: #只在需要支付非0的水晶值才会进行下面的处理
-			ID, mana = subject.ID, max(0, mana)
-			if self.cardCostsHealth(subject):
-				dmgTaker = self.Game.scapegoat4(self.Game.heroes[ID])
-				dmgTaker.takesDamage(None, mana, damageType="Ability")
+	def payManaCost(self, subject, mana): #只有打出手牌和使用英雄技能时会调用，交易手牌时不触发
+		#只在需要支付非0的水晶值才会进行下面的处理
+		ID, mana = subject.ID, max(0, mana)
+		if mana > 0:
+			if self.cardCostsHealth(subject): self.Game.heroTakesDamage(ID, mana)
 			else: self.manas[ID] -= mana
-			GUI = self.Game.GUI
-			if GUI: GUI.seqHolder[-1].append(GUI.FUNC(GUI.heroZones[ID].drawMana, self.manas[ID], self.manasUpper[ID],
-													  self.manasLocked[ID], self.manasOverloaded[ID]))
-			self.Game.sendSignal("ManaPaid", ID, subject, None, mana, "")
-			if subject.category == "Minion":
-				self.Game.Counters.manaSpentonPlayingMinions[ID] += mana
-			elif subject.category == "Spell":
-				self.Game.Counters.manaSpentonSpells[ID] += mana
+			if GUI := self.Game.GUI: GUI.seqHolder[-1].append(GUI.FUNC(GUI.heroZones[ID].drawMana, self.manas[ID], self.manasUpper[ID],
+													  					self.manasLocked[ID], self.manasOverloaded[ID]))
+			if subject.category == "Minion": self.Game.Counters.manaSpentonPlayingMinions[ID] += mana
+			elif subject.category == "Spell": self.Game.Counters.manaSpentonSpells[ID] += mana
+
+		self.Game.sendSignal("ManaPaid", ID, subject, None, mana, "")
 		subject.losesEffect("Cost Health Instead", -1)
 
 	#At the start of turn, player's locked mana crystals are removed.

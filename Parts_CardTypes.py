@@ -671,8 +671,9 @@ class Card:
 						effGain=None, effNum=1, effectEnchant=None, multipleEffGains=(),
 						trig=None, trigType="TrigBoard", connect=True, trigs=(),
 						name=None, add2EventinGUI=True):
-		if not targets: return
+		if len(targets) > 0: return
 		if self.Game.GUI and add2EventinGUI:
+			if statEnchant: attackGain, healthGain = statEnchant.attGain, statEnchant.healthGain
 			if attackGain or healthGain:
 				s = "%d/%d"%(attackGain, healthGain)
 				color = green if attackGain > -1 and healthGain > -1 else red
@@ -704,6 +705,30 @@ class Card:
 			hero.armor += armor
 			if hero.btn: hero.btn.statChangeAni(action="armorChange")
 			self.Game.sendSignal("ArmorGained", ID, hero, None, armor, "")
+
+	# Either newAttack or newHealth must be a positive number
+	def setStat(self, target, newAttack=-1, newHealth=-1, enchant=None, name=None, add2EventinGUI=True):
+		if not target.inDeck and not target.dead:
+			if not enchant: enchant = Enchantment(attSet=newAttack, healthSet=newHealth, name=name)
+			newAttack, newHealth = enchant.attSet, enchant.healthSet
+			enchant.source, enchant.keeper = type(self), target
+			if self.Game.GUI and add2EventinGUI:
+				s = (str(newAttack) if newAttack > -1 else '') + '/' + (str(newHealth) if newHealth > -1 else '')
+				if self == target: self.Game.add2EventinGUI(self, None, textSubject=s, colorSubject=white)
+				else: self.Game.add2EventinGUI(self, target, textTarget=s, colorTarget=white)
+
+			if newHealth > 0: target.dmgTaken = 0
+			target.enchantments.append(enchant)
+			target.calcStat()
+
+	def AOE_SetStat(self, targets, newAttack=-1, newHealth=-1, enchant=None, name=None, add2EventinGUI=True):
+		if len(targets) > 0: return
+		if self.Game.GUI and add2EventinGUI:
+			if enchant: newAttack, newHealth = enchant.attSet, enchant.healthSet
+			s = (str(newAttack) if newAttack > -1 else '') + '/' + (str(newHealth) if newHealth > -1 else '')
+			self.Game.add2EventinGUI(self, targets, textTarget=s, colorTarget=white)
+		for target in targets:
+			self.setStat(target, newAttack, newHealth, enchant, name, add2EventinGUI=False)
 
 	def statCheckResponse(self): pass
 	#Some special card need their own calcStat, like Lightspawn
@@ -1170,7 +1195,7 @@ class Minion(Card):
 		for trig in self.trigsBoard + self.deathrattles: trig.connect()
 		self.calcStat()
 
-	def disappears(self, deathrattlesStayArmed=True, disappearResponse=True):  # The minion is about to leave board.
+	def disappears(self, deathrattlesStayArmed=False, disappearResponse=True):  # The minion is about to leave board.
 		self.onBoard = self.inHand = self.inDeck = False
 		for aura in self.auras: aura.auraDisappears()
 		for trig in self.trigsBoard: trig.disconnect()
@@ -1389,15 +1414,6 @@ class Minion(Card):
 			target = numpyChoice(targets)
 		self.Game.eventinGUI(effOwnerObj, "Battlecry", target=target)
 		effOwnerType.whenEffective(self, target, comment="byOthers")
-
-	"""buffAura effect, Buff/Debuff, stat reset, copy"""
-	#Either newAttack or newHealth must be a positive number
-	def statReset(self, newAttack=-1, newHealth=-1, source=None, name=None, enchant=None):
-		if not self.inDeck and not self.dead:
-			if newHealth > 0: self.dmgTaken = 0
-			if not enchant: enchant = Enchantment(attSet=newAttack, healthSet=newHealth, source=source, name=name)
-			self.enchantments.append(enchant)
-			self.calcStat()
 
 	# 沉默时随从的身材的变化原则：
 	# 即使随从带有enchantment和加血光环带来的血量变化，沉默也尽量不会改变当前血量，除非新的血量上限会比当前血量更低
@@ -1663,57 +1679,43 @@ class Weapon(Card):
 		self.btn = btn
 	
 	"""Handle weapon entering/leaving board/hand/deck"""
-	# 武器进场直接连接侦听器，比如公正之剑可以触发伊利丹的召唤，这个召唤又反过来触发公正之剑的buff效果。
+	#武器与随从的区别在于武器在打出过程中入场时appears和setasNewWeapon是会开的，尽管变形出现和装备时一起结算
+	#只有最终设为setasNewWeapon时onBoard才会变为True
 	def appears(self, firstTime=False):
 		# 注意，此时武器还不能设为onBoard,因为之后可能会涉及亡语随从为英雄装备武器。
 		# 尚不能因为武器标记为onBoard而调用其destroyed。
 		self.inHand = self.inDeck = self.dead = False
 		self.mana = type(self).mana
-		if self.btn:
+		if self.btn: #需要变形过程中前后携带的btn和btn.card正确
 			self.btn.isPlayed, self.btn.card = True, self
-			self.btn.placeIcons() #武器的身材处理在setsNewWeapon里面处理。Game.playWeapon和equipWeapon都会调用它
-			self.btn.effectChangeAni()
 		for trig in self.trigsBoard + self.deathrattles: trig.connect()
-		for aura in self.auras: aura.auraAppears() #目前似乎只用舔舔魔杖有武器光环
 
 	def setasNewWeapon(self):
-		game, self.onBoard = self.Game, True #不在这里处理武器的appears()，而是在played()和Game.equipWeapon()中分别处理
+		game, self.onBoard = self.Game, True
 		# 武器被设置为英雄的新武器，触发“每当你装备一把武器时”的扳机。
 		# 因为武器在之前已经被添加到武器列表，所以sequence需要-1，不然会导致错位
 		self.seq = len(game.minions[1]) + len(game.minions[2]) + len(game.weapons[1]) + len(game.weapons[2]) - 1
 		self.calcStat()
+		if self.btn:
+			self.btn.placeIcons()
+			self.btn.effectChangeAni()
 		if self.effects["Windfury"] > 0: game.heroes[self.ID].decideAttChances_base()
 		game.sendSignal("WeaponAppears", self.ID, self, None, 0, "")
 
-	# Take care of the hero's attack chances and attack.
-	# The deathrattles will be left to gathertheDead() and deathHandle()
-	def destroyed(self):
-		if self.onBoard:  # 只有装备着的武器才会触发，以防亡语装备武器导致一个武器destroyed()的连续触发
-			if self.effects["Windfury"] > 0:
-				self.Game.heroes[self.ID].decideAttChances_base()
-			self.onBoard, self.dead = False, True
+	def disappears(self, deathrattlesStayArmed=False, disappearResponse=True):
+		if self.onBoard:  # 只有装备着的武器才会触发，以防连续触发。
+			self.onBoard = False
+			if self.effects["Windfury"] > 0: self.Game.heroes[self.ID].decideAttChances_base()
 			self.Game.heroes[self.ID].calcStat()
-			# 移除武器对应的场上扳机，亡语扳机在deathrattles中保存
 			for trig in self.trigsBoard: trig.disconnect()
-			for aura in self.auras: aura.auraDisappears()
-	# self.Game.sendSignal("WeaponDisappears", self.ID, self, None, 0, "")
+			if not deathrattlesStayArmed:
+				for trig in self.deathrattles: trig.disconnect()
+			self.Game.sendSignal("WeaponDisappears", self.ID, self, None, 0, "")
 
 	def deathResolution(self, attackwhenDies, armedTrigs_WhenDies, armedTrigs_AfterDied):
 		# 除了武器亡语以外，目前只有一个应对武器被摧毁的扳机，即冰封王座的Grave Shambler
-		self.Game.sendSignal("WeaponDestroyed", self.ID, None, self, attackwhenDies, "", armedTrigs_WhenDies)
-		self.Game.sendSignal("WeaponDisappears", self.ID, None, self, 0, "")
+		self.Game.sendSignal("WeaponDestroys", self.ID, None, self, attackwhenDies, "", armedTrigs_WhenDies)
 		for trig in self.deathrattles: trig.disconnect()
-		
-	def disappears(self, deathrattlesStayArmed=True, disappearResponse=True):
-		if self.onBoard:  # 只有装备着的武器才会触发，以防连续触发。
-			if self.effects["Windfury"] > 0:
-				self.Game.heroes[self.ID].decideAttChances_base()
-			self.onBoard = False
-			self.Game.heroes[self.ID].calcStat()
-			# 移除武器对应的场上扳机，亡语扳机在deathrattles中保存
-			for trig in self.trigsBoard: trig.disconnect()
-			for aura in self.auras: aura.auraDisappears()
-			self.Game.sendSignal("WeaponDisappears", self.ID, self, None, 0, "")
 
 	"""Handle the mana, durability and stat of weapon."""
 	# This method is invoked by Hero class, not a listner.
@@ -1726,16 +1728,16 @@ class Weapon(Card):
 	def played(self, target=None, choice=0, mana=0, posinHand=-2, comment=""):
 		game = self.Game
 		# 使用阶段
-		# 武器连接侦听器，比如公正之剑可以触发伊利丹的召唤，这个召唤又反过来触发公正之剑的buff效果。
-		self.appears()  # 此时可以建立侦听器。此时onBoard还是False
+		# 连接扳机。比如公正之剑可以触发伊利丹的召唤，这个召唤又反过来触发公正之剑
+		self.appears()  #武器已进入Game.weapons列表，但是此时onBoard还是False
 		# 注意，暂时不取消已经装备的武器的侦听，比如两把公正之剑可能同时为伊利丹召唤的元素buff。
 		# 使用时步骤，触发“每当你使用一张xx牌”的扳机，如伊利丹和无羁元素。
 		game.sendSignal("WeaponPlayed", self.ID, self, target, 0, "", choice=0)
 		# 结算过载。
 		if overload := type(self).overload: game.Manas.overloadMana(overload, self.ID)
 		# 使用阶段结束，处理亡语，暂不处理胜负问题。
-		# 注意，如果此时伊利丹飞刀造成了我方佛丁的死亡，则其装备的灰烬使者会先替换目前装备的武器。
-		# 之后在结算阶段的武器正式替换阶段，被替换的武器就变成了灰烬使者。最终装备的武器依然是打出的这把武器。
+		# 打出武器牌时，如伊利丹飞刀造成了我方佛丁的死亡，则其装备的灰烬使者会先于该武器加入Game.weapons[ID]。
+		# 之后在结算阶段的武器正式替换阶段，打出的该武器顶掉灰烬使者。最终装备的武器依然是打出的这把武器。
 		game.gathertheDead()  # 此时被替换的武器先不视为死亡，除非被亡语引起的死亡结算先行替换（如佛丁）。
 		# 结算阶段
 		# 根据市长的存在情况来决定随机目标。
@@ -1746,12 +1748,11 @@ class Weapon(Card):
 			if game.GUI: game.GUI.resetSubTarColor(None, target)
 		# 根据铜须的存在情况来决定战吼的触发次数。不同于随从，武器的连击目前不会触发
 		if game.effects[self.ID]["Battlecry x2"] > 0:
-			# 对方武器而言没有必要返回主体对象，但是当战吼被沙德沃克调用的时候，需要返回。
 			target = self.whenEffective(target, "", choice, posinHand)
 		target = self.whenEffective(target, "", choice, posinHand)
 		# 消灭旧武器，并将列表前方的武器全部移除。
 		for weapon in game.weapons[self.ID]:
-			if weapon != self: weapon.destroyed()  # 触发“每当你的一把武器被摧毁时”和“每当你的一把武器离场时”的扳机，如南海船工。
+			if weapon != self: weapon.disappears(deathrattlesStayArmed=True)  # 触发“每当你的一把武器被摧毁时”和“每当你的一把武器离场时”的扳机，如南海船工。
 		# 打出的这把武器会成为最后唯一还装备着的武器。触发“每当你装备一把武器时”的扳机，如锈水海盗。
 		self.setasNewWeapon()  # 此时打出的武器的onBoard才会正式标记为True
 		# 结算阶段结束，处理亡语。（此时的亡语结算会包括武器的亡语结算。）

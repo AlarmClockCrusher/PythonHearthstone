@@ -134,7 +134,7 @@ class Panda_UICommon(ShowBase):
 			self.modelTemplates[iconName] = np_Icon
 			np_Icon.name = iconName + "_Icon"
 			if iconName == "Hourglass":
-				makeText(np_Icon, "Trig Counter", '', pos=(-0.02, -0.18, 0.04), scale=0.6, font=self.font, color=white)
+				makeText(np_Icon, "Trig Counter", '', pos=(-0.02, -0.18, 0.04), scale=0.6, font=self.font, color=black)
 			else: makeTexCard(self, "TexCards\\Shared\\%s.egg" % iconName, pos=(0, 0, 0), scale=scale, parent=np_Icon)
 			#np_Icon is now: Trigger_Icon
 								#Trigger|TexCard

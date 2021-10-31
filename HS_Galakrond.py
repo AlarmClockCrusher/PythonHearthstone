@@ -363,7 +363,7 @@ class RotnestDrake(Minion):
 		
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		minions = self.Game.minionsAlive(3-self.ID)
-		if minions: self.Game.killMinion(self, numpyChoice(minions))
+		if minions: self.Game.kill(self, numpyChoice(minions))
 		
 		
 class ArcaneAmplifier(Minion):

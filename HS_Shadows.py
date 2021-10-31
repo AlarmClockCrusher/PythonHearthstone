@@ -88,7 +88,7 @@ class Death_ConvincingInfiltrator(Deathrattle_Minion):
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		minion = self.keeper
 		minions = minion.Game.minionsAlive(3 - minion.ID)
-		if minions: minion.Game.killMinion(minion, minions)
+		if minions: minion.Game.kill(minion, minions)
 
 # There are minions who also have this deathrattle.
 class Death_WagglePick(Deathrattle_Weapon):
@@ -645,7 +645,7 @@ class FacelessRager(Minion):
 		return target.category == "Minion" and target.ID == self.ID and target != self and target.onBoard
 		
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		if target: self.statReset(-1, target.health, source=type(self))
+		if target: self.setStat(self, -1, target.health, name=FacelessRager)
 		return target
 		
 		
@@ -1049,7 +1049,7 @@ class JepettoJoybuzz(Minion):
 			card, mana, entersHand = self.drawCertainCard(conditional=lambda card: card.category == "Minion")
 			if not card: break
 			elif entersHand:
-				card.statReset(1, 1, source=type(self))
+				self.setStat(card, 1, 1, name=JepettoJoybuzz)
 				ManaMod(card, to=1).applies()
 		
 
@@ -1596,7 +1596,7 @@ class ConjurersCalling2(Twinspell):
 			key = "%d-Cost Minions to Summon" % cost
 			targetID, position = target.ID, target.pos
 			if target.onBoard:
-				game.killMinion(self, target)
+				game.kill(self, target)
 			elif target.inHand:
 				self.Game.Hand_Deck.discard(target)  #如果随从在手牌中则将其丢弃
 			#强制死亡需要在此插入死亡结算，并让随从离场
@@ -1898,7 +1898,7 @@ class ForbiddenWords(Spell):
 		if target:
 			self.Game.Counters.manaSpentonSpells[self.ID] += self.Game.Manas.manas[self.ID]
 			self.Game.Manas.manas[self.ID] = 0
-			self.Game.killMinion(self, target)
+			self.Game.kill(self, target)
 		return target
 		
 		
@@ -1968,7 +1968,7 @@ class ShadowyFigure(Minion):
 					Copy = target.selfCopy(self.ID, self, 2, 2)
 				else: #target not on board. This Shadowy Figure becomes a base copy of it.
 					Copy = type(target)(self.Game, self.ID)
-					Copy.statReset(2, 2, source=type(self))
+					self.setStat(Copy, 2, 2, name=ShadowyFigure)
 				self.transform(self, Copy)
 		return target
 		
@@ -2140,7 +2140,7 @@ class UnidentifiedContract(Spell):
 		return target.category == "Minion" and target.onBoard
 		
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		if target: self.Game.killMinion(self, target)
+		if target: self.Game.kill(self, target)
 		return target
 		
 
@@ -2159,7 +2159,7 @@ class AssassinsContract(Spell):
 		
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		if target:
-			self.Game.killMinion(self, target)
+			self.Game.kill(self, target)
 			self.summon(PatientAssassin(self.Game, self.ID))
 		return target
 		
@@ -2179,7 +2179,7 @@ class LucrativeContract(Spell):
 		
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		if target:
-			self.Game.killMinion(self, target)
+			self.Game.kill(self, target)
 		self.addCardtoHand([TheCoin, TheCoin], self.ID)
 		return target
 		
@@ -2199,7 +2199,7 @@ class RecruitmentContract(Spell):
 		
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		if target:
-			self.Game.killMinion(self, target)
+			self.Game.kill(self, target)
 		self.addCardtoHand(type(target), self.ID)
 		return target
 		
@@ -2219,7 +2219,7 @@ class TurncoatContract(Spell):
 		
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		if target:
-			self.Game.killMinion(self, target)
+			self.Game.kill(self, target)
 			if target.onBoard and (adjacentMinions := self.Game.neighbors2(target)[0]):
 				target.AOE_Damage(adjacentMinions, [target.attack]*len(adjacentMinions))
 		return target
@@ -2496,7 +2496,7 @@ class EVILGenius(Minion):
 		
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		if target:
-			self.Game.killMinion(self, target)
+			self.Game.kill(self, target)
 			self.addCardtoHand(numpyChoice(Lackeys, 2, replace=True), self.ID)
 		return target
 		
@@ -2579,7 +2579,7 @@ class DarkestHour(Spell):
 		game = self.Game
 		friendlyMinions = game.minionsonBoard(self.ID)
 		boardSize = len(friendlyMinions)
-		game.killMinion(self, friendlyMinions)
+		game.kill(self, friendlyMinions)
 		#对于所有友方随从强制死亡，并令其离场，因为召唤的随从是在场上右边，不用记录死亡随从的位置
 		game.gathertheDead()
 		for _ in range(boardSize):

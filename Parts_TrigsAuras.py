@@ -190,7 +190,7 @@ class Deathrattle_Minion(TrigBoard):
 		return self.keeper.Game.effects[self.keeper.ID]["Deathrattle X"] < 1 and target == self.keeper
 
 class Deathrattle_Weapon(TrigBoard):
-	signals = ("WeaponDestroyed", )
+	signals = ("WeaponDestroys", )
 	def trig(self, signal, ID, subject, target, number, comment, choice=0):
 		if self.canTrig(signal, ID, subject, target, number, comment):
 			weapon, game = self.keeper, self.keeper.Game
@@ -256,7 +256,7 @@ class Trig_DieatEndofTurn(TrigBoard):
 		return self.keeper.onBoard #Even if the current turn is not the minion's owner's turn
 		
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.keeper.Game.killMinion(None, self.keeper)
+		self.keeper.Game.kill(None, self.keeper)
 		
 		
 class Trig_Quest(TrigBoard):
@@ -686,7 +686,7 @@ class ManaAura:
 			return auraCopy
 		else: return game.copiedObjs[self]
 
-			
+
 #TempManaEffects are supposed be single-usage. If self.temporary, then it expires at the end of turn.
 class GameManaAura_OneTime:
 	card, signals, by, to, targets = None, (), 0, -1, "Hand"

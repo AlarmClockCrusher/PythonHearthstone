@@ -100,7 +100,7 @@ class Trig_Corrupt(TrigHand):
 	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
 		#在打出一张牌的时候先支付法力值，根据费用决定这个扳机是否激活。然后在实际发出一张牌已经被打出的信号时，决定是否应该实际腐化
 		card = self.keeper
-		if signal == "ManaPaid": return card.inHand and ID == card.ID and subject.category != "Power"
+		if signal == "ManaPaid": return card.inHand and number > 0 and ID == card.ID and subject.category != "Power"
 		else: return card.inHand and self.on and ID == card.ID
 
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
@@ -255,7 +255,7 @@ class Trig_TrueaimCrescent(TrigBoard):
 
 
 class Trig_AceHunterKreen(TrigBoard):
-	signals = ("BattleStarted", "BattleFinished", )
+	signals, nextAniWaits = ("BattleStarted", "BattleFinished", ), True
 	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
 		return subject.ID == self.keeper.ID and subject != self.keeper and self.keeper.onBoard
 
@@ -343,7 +343,7 @@ class GameRuleAura_ProfessorSlate(GameRuleAura):
 class Trig_KroluskBarkstripper(Spellburst):
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		minions = self.keeper.Game.minionsAlive(3-self.keeper.ID)
-		if minions: self.keeper.Game.killMinion(self.keeper, numpyChoice(minions))
+		if minions: self.keeper.Game.kill(self.keeper, numpyChoice(minions))
 
 
 class Trig_Firebrand(Spellburst):
@@ -370,7 +370,7 @@ class Trig_JandiceBarov(TrigBoard):
 		return self.keeper.onBoard and target == self.keeper
 		
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.keeper.Game.killMinion(None, self.keeper)
+		self.keeper.Game.kill(None, self.keeper)
 		
 		
 class Trig_MozakiMasterDuelist(TrigBoard):
@@ -416,7 +416,7 @@ class Trig_TuralyontheTenured(TrigBoard):
 		return self.keeper.onBoard and subject == self.keeper
 		
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		target.statReset(3, 3, source=type(self.keeper))
+		self.keeper.setStat(target, 3, 3, name=TuralyontheTenured)
 
 		
 class Trig_PowerWordFeast(TrigBoard):
@@ -2026,8 +2026,7 @@ class WaveofApathy(Spell):
 	description = "Set the Attack of all enemy minions to 1 until your next turn"
 	name_CN = "倦怠光波"
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		for minion in self.Game.minionsonBoard(3-self.ID):
-			minion.statReset(1, -1, enchant=Enchantment(attSet=1, until=self.ID, name=WaveofApathy))
+		self.AOE_SetStat(self.Game.minionsonBoard(3-self.ID), enchant=Enchantment(attSet=1, until=self.ID, name=WaveofApathy))
 
 class ArgentBraggart(Minion):
 	Class, race, name = "Paladin", "", "Argent Braggart"
@@ -2059,7 +2058,7 @@ class GiftofLuminance(Spell):
 		if target:
 			self.giveEnchant(target, effGain="Divine Shield", name=GiftofLuminance)
 			Copy = target.selfCopy(target.ID, self) if target.onBoard or target.inHand else type(target)(self.Game, target.ID)
-			Copy.statReset(1, 1, source=type(self))
+			self.setStat(Copy, 1, 1, name=GiftofLuminance)
 			self.summon(Copy, position=target.pos+1)
 		return target
 
@@ -2263,7 +2262,7 @@ class BrittleboneDestroyer(Minion):
 	#If the minion is returned to hand, move it from enemy hand into our hand.
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		if target and self.Game.Counters.heroChangedHealthThisTurn[self.ID]:
-			self.Game.killMinion(self, target)
+			self.Game.kill(self, target)
 		return target
 		
 
@@ -2377,7 +2376,7 @@ class Coerce(Spell):
 		
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		if target:
-			self.Game.killMinion(self, target)
+			self.Game.kill(self, target)
 		return target
 		
 		
@@ -2859,8 +2858,8 @@ class LordBarov(Minion):
 	name_CN = "巴罗夫领主"
 	deathrattle = Death_LordBarov
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		for minion in self.Game.minionsonBoard(self.ID, self) + self.Game.minionsonBoard(3-self.ID):
-			minion.statReset(newHealth=1, source=type(self))
+		self.AOE_SetStat(self.Game.minionsonBoard(self.ID, self) + self.Game.minionsonBoard(3-self.ID),
+						newHealth=1, name=LordBarov)
 		
 
 class Playmaker(Minion):

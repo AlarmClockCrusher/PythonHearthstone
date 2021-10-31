@@ -189,7 +189,7 @@ class Trig_RazormaneRaider(Frenzy):
 class Trig_TaurajoBrave(Frenzy):
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		if minions := self.keeper.Game.minionsAlive(3 - self.keeper.ID):
-			self.keeper.Game.killMinion(self.keeper, numpyChoice(minions))
+			self.keeper.Game.kill(self.keeper, numpyChoice(minions))
 
 
 class Trig_GuffRunetotem(TrigBoard):
@@ -356,7 +356,7 @@ class Trigger_PowerWordFortitude(TrigHand):
 
 
 class Trig_ParalyticPoison(TrigBoard):
-	signals = ("BattleStarted", "BattleFinished", )
+	signals, nextAniWaits = ("BattleStarted", "BattleFinished", ), True
 	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
 		return subject == self.keeper.Game.heroes[self.keeper.ID] and self.keeper.onBoard
 
@@ -560,7 +560,7 @@ class Trig_JudgmentofJustice(Trig_Secret):
 		return self.keeper.ID != self.keeper.Game.turn and subject.ID != self.keeper.ID
 
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		subject.statReset(1, 1, source=type(self))
+		self.keeper.setStat(subject, 1, 1, name=JudgmentofJustice)
 
 
 class Trig_WailingVapor(TrigBoard):
@@ -1653,7 +1653,7 @@ class ShadowHunterVoljin(Minion):
 			if indices := [i for i, card in enumerate(hand) if card.category == "Minion"]:
 				i = numpyChoice(indices)
 				minion, pos = curGame.Hand_Deck.hands[ID][i], target.pos
-				minion.disappears(deathrattlesStayArmed=False)
+				minion.disappears()
 				curGame.removeMinionorWeapon(minion)
 				minion.reset(ID)
 				#下面节选自Hand.py的addCardtoHand方法，但是要跳过手牌已满的检测
@@ -3121,7 +3121,7 @@ class GrimoireofSacrifice(Spell):
 
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		if target:
-			self.Game.killMinion(self, target)
+			self.Game.kill(self, target)
 			damage = self.calcDamage(2)
 			targets = self.Game.minionsonBoard(3-self.ID)
 			self.AOE_Damage(targets, [damage]*len(targets))
@@ -3617,7 +3617,7 @@ class ShatteringBlast(Spell):
 	name_CN = "冰爆冲击"
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		targets = [minion for minion in self.Game.minionsonBoard(1) + self.Game.minionsonBoard(2) if minion.effects["Frozen"] > 0]
-		self.Game.killMinion(self, targets)
+		self.Game.kill(self, targets)
 
 
 class Floecaster(Minion):
@@ -3708,7 +3708,7 @@ class AgainstAllOdds(Spell):
 	name_CN = "除奇致胜"
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		targets = [minion for minion in self.Game.minionsonBoard(1) + self.Game.minionsonBoard(2) if minion.attack % 2 == 1]
-		if targets: self.Game.killMinion(self, targets)
+		if targets: self.Game.kill(self, targets)
 
 
 #Rogue cards

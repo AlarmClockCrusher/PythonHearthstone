@@ -407,7 +407,7 @@ class Trig_Reckoning(Trig_Secret):
 			and subject.ID != self.keeper.ID and subject.category == "Minion" and not subject.dead and subject.health > 0
 
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.keeper.Game.killMinion(self.keeper, subject)
+		self.keeper.Game.kill(self.keeper, subject)
 		self.on = True
 
 
@@ -615,9 +615,8 @@ class AcidicSwampOoze(Minion):
 	name_CN = "酸性沼泽软泥怪"
 
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		for weapon in self.Game.weapons[3-self.ID]:
-			weapon.destroyed()
-
+		self.Game.kill(self, self.Game.weapons[3 - self.ID])
+		
 
 class AnnoyoTron(Minion):
 	Class, race, name = "Neutral", "Mech", "Annoy-o-Tron"
@@ -661,7 +660,7 @@ class CrazedAlchemist(Minion):
 		return target.category == "Minion" and target != self and target.onBoard
 
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		if target: target.statReset(target.health, target.attack, source=type(self))
+		if target: self.setStat(target, target.health, target.attack, name=CrazedAlchemist)
 		return target
 
 
@@ -1009,7 +1008,7 @@ class BigGameHunter(Minion):
 		return target.category == "Minion" and target != self and target.attack > 6 and target.onBoard
 
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		if target: self.Game.killMinion(self, target)
+		if target: self.Game.kill(self, target)
 		return target
 
 
@@ -1304,7 +1303,7 @@ class DeathwingtheDestroyer(Minion):
 
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		ID, game = self.ID, self.Game
-		game.killMinion(self, (minions := game.minionsAlive(ID, self) + game.minionsAlive(3-ID)))
+		game.kill(self, (minions := game.minionsAlive(ID, self) + game.minionsAlive(3 - ID)))
 		ownHand = game.Hand_Deck.hands[ID]
 		for num in range(len(minions)):
 			if ownHand: game.Hand_Deck.discard(ID, numpyRandint(len(ownHand)))
@@ -1885,7 +1884,7 @@ class HeadhuntersHatchet(Weapon):
 		self.effectViable = any("Beast" in minion.race for minion in self.Game.minionsonBoard(self.ID))
 
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=0):
-		#Can't be invoked by Shudderwock.
+		#Invoker must be a weapon in order to gain Durability
 		if self.Game.minionsonBoard(self.ID, race="Beast") and self.category == "Weapon":
 			self.giveEnchant(self, 0, 1, name=HeadhuntersHatchet)
 
@@ -1958,7 +1957,7 @@ class DeadlyShot(Spell):
 	name_CN = "致命射击"
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		minions = self.Game.minionsAlive(3 - self.ID)
-		if minions: self.Game.killMinion(self, numpyChoice(minions))
+		if minions: self.Game.kill(self, numpyChoice(minions))
 
 
 class DireFrenzy(Spell):
@@ -2057,7 +2056,7 @@ class SnapFreeze(Spell):
 
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		if target:
-			if target.effects["Frozen"] > 0: self.Game.killMinion(self, target)
+			if target.effects["Frozen"] > 0: self.Game.kill(self, target)
 			else: self.freeze(target)
 		return target
 
@@ -2311,7 +2310,7 @@ class AldorPeacekeeper(Minion):
 
 	#Infer from Houndmaster: Buff can apply on targets on board, in hand, in deck.
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		if target: target.statReset(1, source=type(self))
+		if target: self.setStat(target, 1, name=AldorPeacekeeper)
 		return target
 
 
@@ -2322,10 +2321,10 @@ class Equality(Spell):
 	description = "Change the Health of ALL minions to 1"
 	name_CN = "生而平等"
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		for minion in self.Game.minionsonBoard(1) + self.Game.minionsonBoard(2):
-			minion.statReset(newHealth=1, source=type(self))
-
-
+		self.AOE_SetStat(self.Game.minionsonBoard(self.ID) + self.Game.minionsonBoard(3-self.ID),
+						newHealth=1, name=Equality)
+		
+		
 class WarhorseTrainer(Minion):
 	Class, race, name = "Paladin", "", "Warhorse Trainer"
 	mana, attack, health = 3, 3, 4
@@ -2511,7 +2510,7 @@ class ShadowWordDeath(Spell):
 
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		if target:
-			self.Game.killMinion(self, target)
+			self.Game.kill(self, target)
 		return target
 
 
@@ -2613,7 +2612,7 @@ class ShadowWordRuin(Spell):
 	description = "Destroy all minions with 5 or more Attack"
 	name_CN = "暗言术：毁"
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		self.Game.killMinion(self, [minion for minion in self.Game.minionsonBoard(1) + self.Game.minionsonBoard(2) if minion.attack > 4])
+		self.Game.kill(self, [minion for minion in self.Game.minionsonBoard(1) + self.Game.minionsonBoard(2) if minion.attack > 4])
 
 
 class TempleEnforcer(Minion):
@@ -2651,7 +2650,7 @@ class NatalieSeline(Minion):
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		if target:
 			healthGain = max(0, target.health)
-			self.Game.killMinion(self, target)
+			self.Game.kill(self, target)
 			self.giveEnchant(self, 0, healthGain, name=NatalieSeline)
 		return target
 
@@ -2862,7 +2861,7 @@ class Assassinate(Spell):
 
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		if target:
-			self.Game.killMinion(self, target)
+			self.Game.kill(self, target)
 		return target
 
 
@@ -2889,8 +2888,7 @@ class Sprint(Spell):
 	description = "Draw 4 cards"
 	name_CN = "疾跑"
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		for num in (0, 1, 2, 3):
-			self.Game.Hand_Deck.drawCard(self.ID)
+		for num in (0, 1, 2, 3): self.Game.Hand_Deck.drawCard(self.ID)
 
 
 """Shaman Cards"""
@@ -3121,7 +3119,7 @@ class RitualofDoom(Spell):
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		if target:
 			hadEnoughMinions = len(self.Game.minionsonBoard(self.ID)) > 4
-			self.Game.killMinion(self, target)
+			self.Game.kill(self, target)
 			self.Game.gathertheDead()
 			if hadEnoughMinions: self.summon(DemonicTyrant(self.Game, self.ID))
 		return target
@@ -3223,7 +3221,7 @@ class VoidTerror(Minion):
 				for minion in neighbors:
 					attackGain += max(0, minion.attack)
 					healthGain += max(0, minion.health)
-				self.Game.killMinion(self, neighbors)
+				self.Game.kill(self, neighbors)
 				self.giveEnchant(self, attackGain, healthGain, name=VoidTerror)
 
 
@@ -3311,7 +3309,7 @@ class SiphonSoul(Spell):
 
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		if target:
-			self.Game.killMinion(self, target)
+			self.Game.kill(self, target)
 			self.restoresHealth(self.Game.heroes[self.ID], self.calcHeal(3))
 		return target
 
@@ -3343,7 +3341,7 @@ class TwistingNether(Spell):
 	description = "Destroy all minions"
 	name_CN = "扭曲虚空"
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		self.Game.killMinion(self, self.Game.minionsonBoard(1) + self.Game.minionsonBoard(2))
+		self.Game.kill(self, self.Game.minionsonBoard(1) + self.Game.minionsonBoard(2))
 
 
 class INFERNO(Power):
@@ -3449,7 +3447,7 @@ class Execute(Spell):
 		return target.category == "Minion" and target.ID != self.ID and target.health < target.health_max and target.onBoard
 
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		if target: self.Game.killMinion(self, target)
+		if target: self.Game.kill(self, target)
 		return target
 
 
@@ -3548,7 +3546,7 @@ class Brawl(Spell):
 		minions = self.Game.minionsonBoard(1) + self.Game.minionsonBoard(2)
 		if len(minions) > 1:
 			survivor = numpyChoice(minions)
-			self.Game.killMinion(self, [minion for minion in minions if minion != survivor])
+			self.Game.kill(self, [minion for minion in minions if minion != survivor])
 
 
 class Shieldmaiden(Minion):

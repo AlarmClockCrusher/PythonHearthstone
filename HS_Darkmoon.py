@@ -732,20 +732,14 @@ class DarkmoonRider(Minion):
 	index = "DARKMOON_FAIRE~Neutral~Minion~1~1~1~~Darkmoon Rider~Rush~Uncollectible"
 	requireTarget, effects, description = False, "Rush", "Rush"
 	name_CN = "暗月乘客"
-	
-#Assume corrupted card don't inherit any buff/debuff
-#Assume transformation happens when card is played
 
 
-#Assume corrupted card don't inherit any buff/debuff
-#Assume transformation happens when card is played
 class FleethoofPearltusk_Corrupt(Minion):
 	Class, race, name = "Neutral", "Beast", "Fleethoof Pearltusk"
 	mana, attack, health = 5, 8, 8
 	index = "DARKMOON_FAIRE~Neutral~Minion~5~8~8~Beast~Fleethoof Pearltusk~Rush~Corrupted~Uncollectible"
 	requireTarget, effects, description = False, "Rush", "Rush"
 	name_CN = "迅蹄珠齿象"
-
 
 class FleethoofPearltusk(Minion):
 	Class, race, name = "Neutral", "Beast", "Fleethoof Pearltusk"
@@ -784,7 +778,7 @@ class SilasDarkmoon(Minion):
 	def prepMinionstoSwap(self, minions):
 		for minion in minions:
 			if minion:
-				minion.disappears(deathrattlesStayArmed=False)
+				minion.disappears()
 				self.Game.minions[minion.ID].remove(minion)
 				minion.ID = 3 - minion.ID
 				
@@ -969,7 +963,7 @@ class MawofCThun(Spell):
 		
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		if target:
-			self.Game.killMinion(self, target)
+			self.Game.kill(self, target)
 		#Assume the counter still works even if there is no target designated
 		if "CThunPiece" not in self.Game.trigsBoard[self.ID]:
 			CThuntheShattered_Effect(self.Game, self.ID).connect()
@@ -1087,7 +1081,7 @@ class DevouringHunger(Spell):
 			if minion != self.yogg:
 				attGain += max(0, minion.attack)
 				healthGain += max(0, minion.health)
-				game.killMinion(self.yogg, minion)
+				game.kill(self.yogg, minion)
 		if self.yogg.onBoard or self.yogg.inHand: self.giveEnchant(self.yogg, attGain, healthGain, name=DevouringHunger)
 		
 
@@ -1799,7 +1793,7 @@ class MaximaBlastenheimer(Minion):
 		if minion := self.try_SummonfromDeck(self.pos + 1):
 			#verifySelectable is exclusively for player ordering chars to attack
 			self.Game.battle(minion, self.Game.heroes[3-self.ID], verifySelectable=False, useAttChance=True, resolveDeath=False, resetRedirTrig=True)
-			if minion.onBoard: self.Game.killMinion(self, minion)
+			if minion.onBoard: self.Game.kill(self, minion)
 		
 		
 class DarkmoonTonk(Minion):
@@ -2523,7 +2517,7 @@ class MalevolentStrike(Spell):
 		
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		if target:
-			self.Game.killMinion(self, target)
+			self.Game.kill(self, target)
 		return target
 		
 
@@ -2779,7 +2773,7 @@ class CascadingDisaster_Corrupt2(Spell):
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=0):
 		if minions := self.Game.minionsAlive(3-self.ID):
 			for minion in numpyChoice(minions, min(3, len(minions)), replace=False):
-				self.Game.killMinion(self, minion)
+				self.Game.kill(self, minion)
 
 class CascadingDisaster_Corrupt(Spell):
 	Class, school, name = "Warlock", "", "Cascading Disaster"
@@ -2791,7 +2785,7 @@ class CascadingDisaster_Corrupt(Spell):
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=0):
 		if minions := self.Game.minionsAlive(3-self.ID):
 			for minion in numpyChoice(minions, min(2, len(minions)), replace=False):
-				self.Game.killMinion(self, minion)
+				self.Game.kill(self, minion)
 
 class CascadingDisaster(Spell):
 	Class, school, name = "Warlock", "", "Cascading Disaster"
@@ -2801,7 +2795,7 @@ class CascadingDisaster(Spell):
 	name_CN = "连环灾难"
 	trigHand, corruptedType = Trig_Corrupt, CascadingDisaster_Corrupt
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=0):
-		if minions:= self.Game.minionsAlive(3 - self.ID): self.Game.killMinion(self, numpyChoice(minions))
+		if minions:= self.Game.minionsAlive(3 - self.ID): self.Game.kill(self, numpyChoice(minions))
 
 
 class RevenantRascal(Minion):
