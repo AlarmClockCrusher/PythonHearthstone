@@ -956,14 +956,15 @@ class TentacledMenace(Minion):
 	name_CN = "触手恐吓者"
 	
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		card1, mana = self.Game.Hand_Deck.drawCard(self.ID)
-		card2, mana = self.Game.Hand_Deck.drawCard(3-self.ID)
+		card1, mana1, entersHand1 = self.Game.Hand_Deck.drawCard(self.ID)
+		card2, mana2, entersHand2 = self.Game.Hand_Deck.drawCard(3-self.ID)
 		if card1 and card2:
-			mana1, mana2 = card1.mana, card2.mana
-			ManaMod(card1, to=mana2).applies()
-			ManaMod(card2, to=mana1).applies()
-			self.Game.Manas.calcMana_Single(card1)
-			self.Game.Manas.calcMana_Single(card2)
+			if entersHand1:
+				ManaMod(card1, to=mana2).applies()
+				self.Game.Manas.calcMana_Single(card1)
+			if entersHand2:
+				ManaMod(card2, to=mana1).applies()
+				self.Game.Manas.calcMana_Single(card2)
 		
 		
 class CamouflagedDirigible(Minion):
@@ -1015,8 +1016,7 @@ class KronxDragonhoof(Minion):
 	#option here can be either category or object
 	def discoverDecided(self, option, case, info_RNGSync=None, info_GUISync=None):
 		game = self.Game
-		if case == "Discovered" or case == "Random":
-			game.picks_Backup.append((info_RNGSync, info_GUISync, False, type(option)))
+		if case != "Guided": game.picks_Backup.append((info_RNGSync, tuple(info_GUISync), False, type(option)))
 		if option.name == "Annihilation":
 			targets = game.minionsonBoard(self.ID, self) + game.minionsonBoard(3-self.ID)
 			self.AOE_Damage(targets, [5]*len(targets))

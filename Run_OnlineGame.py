@@ -47,7 +47,7 @@ class Layer1Window:
 		self.lbl_LoadingProgress = tk.Label(master=self.window, text='', font=("Yahei", 15))
 		self.lbl_LoadingProgress.grid(row=4, column=0, columnspan=2)
 		
-		if gameGUI:
+		if gameGUI: #如果gameGUI已经存在，则重置它
 			gameGUI.layer1Window = self
 			self.gameGUI = gameGUI
 			game = Game(gameGUI)
@@ -59,7 +59,7 @@ class Layer1Window:
 			self.loading = "Start!"
 			self.btn_Connect.config(text=txt("Finished Loading. Start!", CHN), bg="green3")
 			self.btn_Reconn.config(text=txt("Resume interrupted game", CHN), bg="yellow")
-		else:
+		else: #如果gameGUI不是已经存在，则创建它
 			self.gameGUI = GUI_Online(self)
 			threading.Thread(target=self.gameGUI.preload, name="Preload Thread", daemon=True).start()
 		
@@ -70,10 +70,13 @@ class Layer1Window:
 		self.serverIP_Entry.insert(0, "127.0.0.1")
 		self.queryPort_Entry.insert(0, "65432")
 		self.tableID_Entry.insert(0, "200")
-		
-		"""Create the hero Class selection menu"""
+
+		self.lbl_DisplayedCard = tk.Label(self.window)
 		self.entry_Deck = tk.Entry(self.window, font=("Yahei", 13), width=30)
-		
+		self.var_SeeEachOthersHand = tk.IntVar()
+		tk.Checkbutton(self.window, text=txt("Hands revealed to each other", CHN),
+					   font=("Yahei", 13), variable=self.var_SeeEachOthersHand).grid(row=6, column=0, sticky=tk.E)
+
 		"""Place the widgets"""
 		tk.Label(self.window, text=txt("Server IP Address", CHN), font=("Yahei", 20)).grid(row=0, column=0)
 		tk.Label(self.window, text=txt("Query Port", CHN), font=("Yahei", 20)).grid(row=1, column=0)
@@ -88,8 +91,7 @@ class Layer1Window:
 		tk.Label(self.window, text="         ").grid(row=0, column=2)
 		tk.Label(self.window, text=txt("Enter Deck code", CHN), font=("Yahei", 20)).grid(row=0, column=3)
 		self.entry_Deck.grid(row=1, column=3)
-		self.lbl_DisplayedCard = tk.Label(self.window)
-		self.lbl_DisplayedCard.grid(row=6, column=0, columnspan=2)
+		self.lbl_DisplayedCard.grid(row=7, column=0, columnspan=2)
 		
 		"""Deck composition display"""
 		self.heroClass = "Demon Hunter"
@@ -233,7 +235,8 @@ class Layer1Window:
 			
 			#After getting available ports, send the table ID wanted and see if it is available
 			tableID = self.tableID_Entry.get()
-			send_PossiblePadding(self, self.sock, b"Request to Reserver/Join Table ID,"+tableID.encode())
+			send_PossiblePadding(self, self.sock, b"Request to Reserver/Join Table ID___" +
+								 					tableID.encode()+b"___%d"%self.var_SeeEachOthersHand.get())
 			info_TableAvailability = self.sock.recv(1024)
 			if not info_TableAvailability:
 				self.handleConnectionLost(msg="Connection is lost")
@@ -242,29 +245,34 @@ class Layer1Window:
 				#b"Use another Table ID"
 				#b"Join Reserved Table via Port||24123"
 				#b"Table can be Reserved"
-			if info_TableAvailability.startswith(b"Use another Table ID"):
+			if info_TableAvailability == b"Use another Table ID":
 				self.handleConnectionLost(msg="This table ID is already taken")
 				return
 			elif info_TableAvailability.startswith(b"Join Reserved Table via Port"):
 				port = int(info_TableAvailability.split(b"||")[1])
 				print("Will join a reserved table via port", port)
-			else: #info_TableAvailability can be b"Table can be Reserved"
+			elif info_TableAvailability == b"Table can be Reserved":
 				print("Successfully reserved a table. Connect via port", port)
 				self.lbl_LoadingProgress.config(text=txt("Successfully reserved a table", CHN), font=("Yahei", 17, "bold"), fg="purple1")
+			else:
+				self.handleConnectionLost(msg="Connection is lost")
+				return
 			#A table has been assigned on the server side at this point.
 			print("Now trying to connect to an available table port", port)
 			self.sock.close()
 			self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 			self.sock.connect((serverIP, port))
 			
-			#After connecting to table port, get playerID, boardID and the RNG seed
-			b"PlayerID BoardID Seed||playerID||boardID||seed" #is the info received
-			info_PlayerID_BoardID_Seed = self.sock.recv(1024)
-			if not info_PlayerID_BoardID_Seed:
+			#After connecting to table port, get playerID, boardID, the RNG seed and SeeEachOthersHand
+			b"PlayerID BoardID Seed SeeEachOthersHand||playerID||boardID||seed||SeeEachOthersHand" #is the info received
+			info_PlayerID_BoardID_Seed_SeeEachOthersHand = self.sock.recv(1024)
+			if not info_PlayerID_BoardID_Seed_SeeEachOthersHand:
 				self.handleConnectionLost(msg="Connection is lost")
 				return
-			header, ID, boardID, seed = info_PlayerID_BoardID_Seed.split(b"||")
+			header, ID, boardID, seed, seeEachOthersHand = info_PlayerID_BoardID_Seed_SeeEachOthersHand.split(b"||")
 			self.gameGUI.ID = int(ID)
+			print("See each other hands:", seeEachOthersHand)
+			self.gameGUI.showEnemyHand = seeEachOthersHand == b'1'
 			self.gameGUI.Game.boardID = self.gameGUI.boardID = boardID.decode()
 			
 			#Send the server the hero and deck info. Wait for opponents info
@@ -292,7 +300,7 @@ class Layer1Window:
 	#data = b"Start Mulligan||1/2||bytes(boardID)||heroPickled"
 	def init_ShowBase(self):
 		self.gameGUI.sock = self.sock
-		self.gameGUI.initMulliganDisplay(self.firstTime)
+		self.gameGUI.initMulliganDisplay(self.firstTime, for1P=False)
 		if self.firstTime:
 			self.gameGUI.run() #重复调用run对ShowBase没有影响
 		
@@ -309,76 +317,39 @@ class GUI_Online(Panda_UICommon):
 		self.loading = "Start!"
 		self.layer1Window.btn_Connect.config(text=txt("Finished Loading. Start!", CHN), bg="green3")
 		self.layer1Window.btn_Reconn.config(text=txt("Resume interrupted game", CHN), bg="yellow")
-		
-	def initMulliganDisplay(self, firstTime):
-		self.handZones = {1: HandZone(self, 1), 2: HandZone(self, 2)}
-		self.minionZones = {1: MinionZone(self, 1), 2: MinionZone(self, 2)}
-		self.heroZones = {1: HeroZone(self, 1), 2: HeroZone(self, 2)}
-		self.historyZone = HistoryZone(self)
-		if not self.deckZones: self.deckZones = {1: DeckZone(self, 1), 2: DeckZone(self, 2)}
-		else:
-			self.deckZones[self.ID].changeSide(self.ID)
-			self.deckZones[3-self.ID].changeSide(3-self.ID)
-			
-		self.mulliganStatus = {1: [0, 0, 0], 2: [0, 0, 0, 0]}  #需要在每次退出和重新进入时刷新
-		self.UI = -1
-		self.initGameDisplay()
-		self.btns2Remove.append(DirectButton(text=("Confirm", "Confirm", "Confirm", "Confirm"), scale=0.08,
-										pos=(0, 0, -0.35), command=self.mulligan_PreProcess))
-		
-		#Draw the animation of mulligan cards coming out of the deck
-		ID = self.ID
-		self.posMulligans = {1: [(-7, 1.5, 10), (0, 1.5, 10), (7, 1.5, 10)],
-							 2: [(-8.25, 1.5, 10), (-2.75, 1.5, 10), (2.75, 1.5, 10), (8.25, 1.5, 10)]}[ID]
-		deckZone, handZone, i = self.deckZones[ID], self.handZones[ID], 0
-		pos_0, hpr_0 = deckZone.pos, (90, 90, 0)
-		cards2Mulligan = self.Game.mulligans[ID]
-		mulliganBtns = []
-		for card, pos, hpr, scale in zip(cards2Mulligan, [pos_0] * len(cards2Mulligan), [hpr_0] * len(cards2Mulligan), [1] * len(cards2Mulligan)):
-			mulliganBtns.append(genCard(self, card, isPlayed=False, pos=pos, hpr=hpr, scale=scale)[1])
-		for btn, pos in zip(mulliganBtns, self.posMulligans):
-			Sequence(Wait(0.4 + i * 0.4), LerpPosHprScaleInterval(btn.np, duration=0.5, pos=pos, hpr=(0, 0, 0), scale=1)).start()
-			i += 1
-		
-		for child in self.render.getChildren():
-			if "2Keep" not in child.name:
-				print("After initGame, Left in render:", child.name, type(child))
-		
-		print("Own sock is", self.sock)
-		if firstTime: self.taskMgr.add(self.mainTaskLoop, "Task_MainLoop")
-		
-	def mulligan_PreProcess(self):
-		#需要在这里等待对方的洗牌完成
-		ID, self.UI = self.ID, 0
-		indices = [i for i, status in enumerate(self.mulliganStatus[self.ID]) if status]
+
+	#自己的换牌结束后需要等待对方的信息
+	def initMulligan_ThenWait4Oppo(self):
+		ID, self.UI, game = self.ID, 0, self.Game
 		for btn in self.btns2Remove: btn.destroy()
-		game = self.Game
+
+		indices = [i for i, status in enumerate(self.mulliganStatus[self.ID]) if status]
 		for i in indices: game.mulligans[ID][i].btn.np.removeNode()
-		
+		#直到目前为止不用创建需要等待的sequence
 		game.Hand_Deck.mulligan1Side(ID, indices)
-		handDeck = [[type(card) for card in game.Hand_Deck.hands[self.ID]], [type(card) for card in game.Hand_Deck.decks[self.ID]]]
-		#self.sendMulliganedDeckHand2Server(handDeck, game)
-		threading.Thread(target=self.sendMulliganedDeckHand2Server, args=(handDeck, game),
+		#2P需要通过Server沟通。需要将我方手牌和牌库信息上传Server，然后等待对方的信息回传
+		mulliganDeck = [[type(card) for card in game.mulligans[self.ID]], [type(card) for card in game.Hand_Deck.decks[self.ID]]]
+		threading.Thread(target=self.sendMulliganDeck2Server, args=(mulliganDeck, game),
 						 name="Wait for enemy mulligan thread", daemon=True).start()
 		
-	def sendMulliganedDeckHand2Server(self, handDeck, game):
+	def sendMulliganDeck2Server(self, mulliganDeck, game):
 		time.sleep(0.5)
 		"""
-		Only sending deck&hand info and game plays can possible exceed 1024 limit
+		Only sending Mulligan&Deck info and game plays can possible exceed 1024 limit
 		They need the b"MsgStart" and b"__MsgEnd" padding
 		"""
-		send_PossiblePadding(self, self.sock, b"Exchange Deck&Hand||%s"%pickleObj2Bytes(handDeck))
-		info_HandDeckfromOppo = recv_PossibleLongData(self, self.sock)
-		if not info_HandDeckfromOppo:
+		send_PossiblePadding(self, self.sock, b"Exchange Mulligan&Deck||%s" % pickleObj2Bytes(mulliganDeck))
+		info_MulliganDeckfromOppo = recv_PossibleLongData(self, self.sock)
+		if not info_MulliganDeckfromOppo:
 			self.handleConnectionLost("Connection is lost")
 			return
 		print("Received deck hand info from enemy")
-		if info_HandDeckfromOppo.startswith(b"Start Game with Oppo Hand_Deck"):
-			header, handDeck_Oppo = info_HandDeckfromOppo.split(b"||")
-			hand, deck = unpickleBytes2Obj(handDeck_Oppo) #IF THE DECK IS TOO LONG, THEN 1024 IS NOT ENOUGH TO SEND ALL INFO
+		if info_MulliganDeckfromOppo.startswith(b"Start Game with Oppo Hand_Deck"):
+			header, handDeck_Oppo = info_MulliganDeckfromOppo.split(b"||")
+			mulligan, deck = unpickleBytes2Obj(handDeck_Oppo) #IF THE DECK IS TOO LONG, THEN 1024 IS NOT ENOUGH TO SEND ALL INFO
 			ID_Oppo = 3 - self.ID
+			game.mulligans[ID_Oppo] = [card(game, ID_Oppo) for card in mulligan]
 			game.Hand_Deck.decks[ID_Oppo] = [card(game, ID_Oppo) for card in deck]
-			game.Hand_Deck.hands[ID_Oppo] = [card(game, ID_Oppo) for card in hand]
 			#此时双方手牌中的牌都还没有进行entersHand、entersDeck处理。留给game.Hand_Deck.finalizeHandDeck_StartGame处理
 			self.UI = 0
 			print("\n-----------------\nStart the game as PLAYER %d\n----------------"%self.ID)
@@ -389,35 +360,10 @@ class GUI_Online(Panda_UICommon):
 			#If ID is 2, wait for move from enemy
 			##if self.ID == 2: self.startWaiting4EnemyMove()
 			threading.Thread(target=self.wait4ServerFunc, name="Wait for Server Thread", daemon=True).start()
-		elif info_HandDeckfromOppo.startswith(b"Opponent Disconnected"):
+		elif info_MulliganDeckfromOppo.startswith(b"Opponent Disconnected"):
 			OnscreenText(text="Opponent disconnected. Closing", pos=(0, 0))
 			Sequence(Wait(2), Func(quit)).start()
-			
-	#Returns a sequence to be started later
-	def mulligan_NewCardsfromDeckAni(self, ID, addCoin=True):
-		#At this point, the Coin is added to the Game.mulligans[2]
-		if addCoin: genCard(self, card=self.Game.mulligans[2][-1], isPlayed=False, pos=(13.75, 1.5, 10))
-		
-		#开始需要生成一个Sequence，然后存储在seqHolder里面
-		para = Parallel()
-		deckZone, handZone = self.deckZones[ID], self.handZones[ID]
-		pos_DeckZone, hpr_0 = deckZone.pos, (90, 90, 0)
-		indices, cards2Mulligan = [], []
-		for i, card in enumerate(self.Game.mulligans[ID]):
-			if not card.btn:
-				indices.append(i)
-				cards2Mulligan.append(card)
-		
-		mulliganBtns = []
-		for card, pos, hpr in zip(cards2Mulligan, [pos_DeckZone] * len(cards2Mulligan), [hpr_0] * len(cards2Mulligan)):
-			mulliganBtns.append(genCard(self, card, isPlayed=False, pos=pos, hpr=hpr, scale=1)[1])
-		for btn, i in zip(mulliganBtns, indices):
-			para.append(LerpPosHprScaleInterval(btn.np, duration=0.5, pos=self.posMulligans[i], hpr=(0, 0, 0), scale=1))
-		
-		self.Game.Hand_Deck.hands[ID] = self.Game.mulligans[ID]
-		#已经把所有新从牌库里面出来的牌画在了牌库里面
-		para.start()#self.seqHolder = [Sequence(para, Wait(1))]
-		
+
 	def wait4Enemy2Reconnect(self):
 		self.timer, self.UI = 60, -2
 		#timerText = OnscreenText(text="Wait for Opponent to Reconnect: "+"60s",

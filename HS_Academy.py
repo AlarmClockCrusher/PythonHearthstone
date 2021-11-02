@@ -361,10 +361,8 @@ class Trig_JandiceBarov(TrigBoard):
 		self.show = False
 
 	def connect(self):
+		if GUI := self.keeper.Game.GUI: self.show = not GUI.need2beHidden(self.keeper)
 		super().connect()
-		if GUI := self.keeper.Game.GUI:
-			self.show = not GUI.need2beHidden(self.keeper)
-			self.keeper.btn.placeIcons()
 
 	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
 		return self.keeper.onBoard and target == self.keeper
@@ -878,7 +876,7 @@ class SphereofSapience(Weapon):
 	name_CN = "感知宝珠"
 	trigBoard = Trig_SphereofSapience		
 	def discoverDecided(self, option, case, info_RNGSync=None, info_GUISync=None):
-		if case != "Guided": self.Game.picks_Backup.append((info_RNGSync, info_GUISync, False, type(option)) )
+		if case != "Guided": self.Game.picks_Backup.append((info_RNGSync, tuple(info_GUISync), False, type(option)) )
 		if isinstance(option, NewFate):
 			ownDeck = self.Game.Hand_Deck.decks[self.ID]
 			ownDeck.insert(0, ownDeck.pop())
@@ -1353,7 +1351,7 @@ class StarStudentStelina(Minion):
 
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		if posinHand == 0 or posinHand == -1:
-			self.discoverfromList(StarStudentStelina, '', ls=self.Game.Hand_Deck.hands[3-self.ID])
+			self.discoverfromCardList(StarStudentStelina, '', ls=self.Game.Hand_Deck.hands[3 - self.ID])
 
 	def discoverDecided(self, option, case, info_RNGSync=None, info_GUISync=None):
 		self.handleDiscoveredCardfromList(option, case, ls=self.Game.Hand_Deck.hands[3 - self.ID],
@@ -1978,7 +1976,7 @@ class JandiceBarov(Minion):
 		self.summon([minion1, minion2], relative="<>")
 		if minion1.onBoard and minion2.onBoard:
 			self.chooseFixedOptions(JandiceBarov, comment, options=[minion1, minion2])
-		
+
 	def discoverDecided(self, option, case, info_RNGSync=None, info_GUISync=None):
 		self.handleDiscoverGeneratedCard(option, case, info_RNGSync, info_GUISync,
 										 func=lambda cardType, card: card.getsTrig(Trig_JandiceBarov(card)))

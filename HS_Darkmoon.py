@@ -724,7 +724,6 @@ class DerailedCoaster(Minion):
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		if num := sum(card.category == "Minion" for card in self.Game.Hand_Deck.hands[self.ID]):
 			self.summon([DarkmoonRider(self.Game, self.ID) for i in range(num)])
-		
 
 class DarkmoonRider(Minion):
 	Class, race, name = "Neutral", "", "Darkmoon Rider"
@@ -774,55 +773,46 @@ class SilasDarkmoon(Minion):
 	index = "DARKMOON_FAIRE~Neutral~Minion~7~4~4~~Silas Darkmoon~Battlecry~Legendary"
 	requireTarget, effects, description = False, "", "Battlecry: Choose a direction to rotate all minions"
 	name_CN = "希拉斯暗月"
-	
-	def prepMinionstoSwap(self, minions):
-		for minion in minions:
-			if minion:
-				minion.disappears()
-				self.Game.minions[minion.ID].remove(minion)
-				minion.ID = 3 - minion.ID
-				
-	def swappedMinionsAppear(self, minions):
-		self.Game.sortPos()
-		#假设归还或者是控制对方随从的时候会清空所有暂时控制的标志，并取消回合结束归还随从的扳机
-		for minion in minions:
-			if minion:
-				minion.appears(firstTime=False) #Swapped Imprisoned minions won't go Dormant
-				minion.effects["Borrowed"] = 0
-				for trig in reversed(minion.trigsBoard):
-					if isinstance(trig, Trig_Borrow):
-						trig.disconnect()
-						minion.trigsBoard.remove(trig)
-				#minion.afterSwitchSide(activity="Permanent")
-				
-	def rotateAllMinions(self, perspectiveID=1, giveOwnLeft=True):
-		miniontoGive, miniontoTake = None, None
-		ownMinions = self.Game.minionsonBoard(perspectiveID)
-		enemyMinions = self.Game.minionsonBoard(3-perspectiveID)
-		if giveOwnLeft: ownIndex, enemyIndex = 0, -1  #Give your leftmost and take enemy's rightmost
-		else: ownIndex, enemyIndex = -1, 0 #Give your rightmost and take enemy's leftmost
-		if ownMinions: miniontoGive = self.Game.minions[perspectiveID][ownMinions[ownIndex].pos]
-		if enemyMinions: miniontoTake = self.Game.minions[3-perspectiveID][enemyMinions[enemyIndex].pos]
-		
-		self.prepMinionstoSwap([miniontoGive, miniontoTake])
-		if giveOwnLeft: #Add minions to your rightmost and enemy's leftmost
-			self.Game.minions[perspectiveID].append(miniontoTake)
-			self.Game.minions[3-perspectiveID].insert(0, miniontoGive)
-		else: #Add minions to your leftmost and enemy's rightmost
-			self.Game.minions[perspectiveID].insert(0, miniontoTake)
-			self.Game.minions[3-perspectiveID].append(miniontoGive)
-		self.swappedMinionsAppear([miniontoGive, miniontoTake])
-		
+
+	def rotateMinions(self, giveLeftmost=True):
+		miniontoGive, miniontoTake, ownID = None, None, self.ID
+		ownBoard, enemyBoard = self.Game.minions[ownID], self.Game.minions[3-ownID]
+		ownMinions, enemyMinions = self.Game.minionsonBoard(ownID), self.Game.minionsonBoard(3-ownID)
+		if ownMinions or enemyMinions: #give left most = take right most
+			if ownMinions:
+				(miniontoGive := ownMinions[0] if giveLeftmost else ownMinions[-1]).disappears()
+				miniontoGive.ID = 3 - ownID
+				miniontoGive.effects["Borrowed"] = 0
+				ownBoard.remove(miniontoGive)
+				if giveLeftmost: enemyBoard.insert(0, miniontoGive)
+				else: enemyBoard.append(miniontoGive)
+			if enemyMinions:
+				(miniontoTake := enemyMinions[-1] if giveLeftmost else enemyMinions[0]).disappears()
+				miniontoTake.ID = ownID
+				miniontoTake.effects["Borrowed"] = 0
+				enemyBoard.remove(miniontoTake)
+				if giveLeftmost: ownBoard.append(miniontoTake)
+				else: ownBoard.insert(0, miniontoTake)
+
+			self.Game.sortPos()
+			if miniontoGive:
+				miniontoGive.appears(firstTime=False)
+				miniontoGive.decideAttChances_base()
+			if miniontoTake:
+				miniontoTake.appears(firstTime=False)
+				miniontoTake.decideAttChances_base()
+			if GUI := self.Game.GUI:
+				GUI.seqHolder[-1].append(GUI.PARALLEL(GUI.minionZones[1].placeCards(add2Queue=False),
+													  GUI.minionZones[2].placeCards(add2Queue=False)))
+
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		self.chooseFixedOptions(SilasDarkmoon, comment,
 								options=[RotateThisWay(ID=self.ID), RotateThatWay(ID=self.ID)])
 	
 	#RotateThisWay give your leftmost minion
 	def discoverDecided(self, option, case, info_RNGSync=None, info_GUISync=None):
-		optionType = type(option)
-		if case != "Guided":
-			self.Game.picks_Backup.append((info_RNGSync, info_GUISync, case == "Random", optionType) )
-		SilasDarkmoon.rotateAllMinions(self, perspectiveID=self.ID, giveOwnLeft=optionType == RotateThisWay)
+		self.handleDiscoverGeneratedCard(option, case, info_RNGSync, info_GUISync,
+										func=lambda cardType, card: SilasDarkmoon.rotateMinions(self, giveLeftmost=cardType==RotateThisWay))
 
 class RotateThisWay(Option):
 	name, description = "Rotate This Way", "Give your LEFTMOST minion"
@@ -832,7 +822,7 @@ class RotateThisWay(Option):
 class RotateThatWay(Option):
 	name, description = "Rotate That Way", "Give your RIGHTMOST minion"
 	index = ""
-	mana, attack, health = 0, -1, -1
+	mana, attack, health = -1, -1, -1
 
 
 class Strongman_Corrupt(Minion):
@@ -1448,7 +1438,7 @@ class GuesstheWeight(Spell):
 	name_CN = "猜重量"
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		game = self.Game
-		card, firstCost = game.Hand_Deck.drawCard(self.ID)
+		card, firstCost, entersHand = game.Hand_Deck.drawCard(self.ID)
 		ownDeck = game.Hand_Deck.decks[self.ID]
 		if card and ownDeck:
 			secondCost = ownDeck[-1].mana
@@ -1457,7 +1447,7 @@ class GuesstheWeight(Spell):
 											NextCostsLess(self.ID, firstCost, secondCost)])
 			
 	def discoverDecided(self, option, case, info_RNGSync=None, info_GUISync=None):
-		if case != "Guided": self.Game.picks_Backup.append((info_RNGSync, info_GUISync, case == "Random", type(option)) )
+		if case != "Guided": self.Game.picks_Backup.append((info_RNGSync, tuple(info_GUISync), case == "Random", type(option)) )
 		bingo = (isinstance(option, NextCostsLess) and option.firstCost > option.secondCost) \
 				or (isinstance(option, NextCostsMore) and option.firstCost < option.secondCost)
 		if self.Game.GUI: self.Game.GUI.revealaCardfromDeckAni(self.ID, -1, bingo)
@@ -1766,7 +1756,7 @@ class RinlingsRifle(Weapon):
 	
 	#case here must be "Discovered" or "Guided"
 	def discoverDecided(self, option, case, info_RNGSync=None, info_GUISync=None):
-		if case != "Guided": self.Game.picks_Backup.append((info_RNGSync, info_GUISync, case == "Random", type(option)))
+		if case != "Guided": self.Game.picks_Backup.append((info_RNGSync, tuple(info_GUISync), case == "Random", type(option)))
 		option.creator = RinlingsRifle
 		option.cast()
 		
@@ -1946,7 +1936,7 @@ class RingToss(Spell):
 		self.discoverandGenerate(RingToss, comment, lambda : RingToss.decideSecretPool(self))
 		
 	def discoverDecided(self, option, case, info_RNGSync=None, info_GUISync=None):
-		if case != "Guided": self.Game.picks_Backup.append((info_RNGSync, info_GUISync, case == "Random", type(option)))
+		if case != "Guided": self.Game.picks_Backup.append((info_RNGSync, tuple(info_GUISync), case == "Random", type(option)))
 		option.creator = RingToss
 		option.cast()
 
@@ -2535,7 +2525,7 @@ class GrandEmpressShekzara(Minion):
 			if i > -1: Hand_Deck.drawCard(ID, i)
 			
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		self.discoverfromList(GrandEmpressShekzara, comment)
+		self.discoverfromCardList(GrandEmpressShekzara, comment)
 		
 	def discoverDecided(self, option, case, info_RNGSync=None, info_GUISync=None):
 		self.handleDiscoveredCardfromList(option, case, self.Game.Hand_Deck.decks[self.ID],
@@ -3136,10 +3126,10 @@ class Guidance(Spell):
 		if case == "Discovered": #option is one of the cards or SpiritPath(self.Game, self.ID)
 			card1, card2 = self.Game.options[0:2]
 			i = self.Game.options.index(option)
-			self.Game.picks_Backup.append((info_RNGSync, info_GUISync, False, (type(card1), type(card2), i)))
+			self.Game.picks_Backup.append((info_RNGSync, tuple(info_GUISync), False, (type(card1), type(card2), i)))
 		else: #option is (card1, card2, i)
 			card1, card2, i = option
-			if case == "Random": self.Game.picks_Backup.append((info_RNGSync, info_GUISync, True, (type(card1), type(card2), i)) )
+			if case == "Random": self.Game.picks_Backup.append((info_RNGSync, tuple(info_GUISync), True, (type(card1), type(card2), i)) )
 			
 		if i == 2:
 			self.addCardtoHand((card1, card2), self.ID, byDiscover=True)

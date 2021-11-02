@@ -895,7 +895,7 @@ class FacelessLurker(Minion):
 	name_CN = "无面潜伏者"
 	
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		self.setStat(self, newHealth=self.health * 2, name=FacelessLurker)
+		self.setStat(self, newHealth=self.health*2, name=FacelessLurker)
 		
 		
 class DesertObelisk(Minion):
@@ -1581,7 +1581,7 @@ class TortollanPilgrim(Minion):
 	name_CN = "始祖龟朝圣者"
 
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		self.discoverfromList(TortollanPilgrim, comment, conditional=lambda card: card.category=="Spell")
+		self.discoverfromCardList(TortollanPilgrim, comment, conditional=lambda card: card.category == "Spell")
 		
 	def discoverDecided(self, option, case, info_RNGSync=None, info_GUISync=None):
 		self.handleDiscoveredCardfromList(option, case, ls=self.Game.Hand_Deck.decks[self.ID],

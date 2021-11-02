@@ -1014,14 +1014,14 @@ class KazakusGolemShaper(Minion):
 		self.effectViable = all(card.mana != 4 for card in self.Game.Hand_Deck.decks[self.ID])
 
 	def createGolem(self, mana, effect, golem):
-		name = golem.name
-		words = golem.index.split('~')
+		name, words = golem.name, golem.index.split('~')
 		for i, word in enumerate(words):
 			if word == name: words.insert(i+2, effect)
 		newIndex = '~'.join(words)
-		#Example: "SuperiorGolem__Mageroyal"
-		subclass = type(golem.__name__+'__'+effect, (golem,),
-						{"index": newIndex, "effects": effect, "description": effect + ". " + golem.description}
+		#Example: "SuperiorGolem_Mageroyal"
+		subclass = type(golem.__name__+'__'+effect, (golem, ),
+						{"index": newIndex, "effects": golem.effects+','+effect,
+						 "description": effect + ". " + golem.description}
 						)
 		return subclass
 
@@ -1048,9 +1048,9 @@ class KazakusGolemShaper(Minion):
 						microsecond = datetime.now().microsecond
 						i_mana, i_keyWord, i_golem = microsecond % 3, int(microsecond/10) % 3, int(microsecond/100) % 3
 						mana, effect = manas[i_mana], keyWords[i_keyWord]
-						if mana == 1: golems = (LesserGolem__Wildvine, LesserGolem__Gromsblood, LesserGolem__Icecap, LesserGolem__Firebloom, LesserGolem__Mageroyal, LesserGolem__Kingsblood)
-						elif mana == 5: golems = (GreaterGolem__Wildvine, GreaterGolem__Gromsblood, GreaterGolem__Icecap, GreaterGolem__Firebloom, GreaterGolem__Mageroyal, GreaterGolem__Kingsblood)
-						else: golems = (SuperiorGolem__Wildvine, SuperiorGolem__Gromsblood, SuperiorGolem__Icecap, SuperiorGolem__Firebloom, SuperiorGolem__Mageroyal, SuperiorGolem__Kingsblood)
+						if mana == 1: golems = (LesserGolem_Wildvine, LesserGolem_Gromsblood, LesserGolem_Icecap, LesserGolem_Firebloom, LesserGolem_Mageroyal, LesserGolem_Kingsblood)
+						elif mana == 5: golems = (GreaterGolem_Wildvine, GreaterGolem_Gromsblood, GreaterGolem_Icecap, GreaterGolem_Firebloom, GreaterGolem_Mageroyal, GreaterGolem_Kingsblood)
+						else: golems = (SuperiorGolem_Wildvine, SuperiorGolem_Gromsblood, SuperiorGolem_Icecap, SuperiorGolem_Firebloom, SuperiorGolem_Mageroyal, SuperiorGolem_Kingsblood)
 						#Another n_choose_3
 						golems = numpyChoice(golems, 3, replace=False)
 						golem = golems[i_golem]
@@ -1066,7 +1066,8 @@ class KazakusGolemShaper(Minion):
 						game.options = [LesserGolem(ID=ID), GreaterGolem(ID=ID), SuperiorGolem(ID=ID)]
 						game.Discover.startDiscover(self, effectType=KazakusGolemShaper, info_RNGSync=(6, 6), info_GUISync=info)
 						#The first discover changes the choices and leave a mana in there
-						mana = info[0]
+						mana = info[1]
+						print("Kazakus gets info", info)
 						#Whatever mana is, the effect poolSize is always 6
 						game.options = [choice(ID=ID) for choice in numpyChoice(GolemKeywordOptions[mana], 3, replace=False)]
 						game.Discover.startDiscover(self, effectType=KazakusGolemShaper, info_RNGSync=(6, 6), info_GUISync=info)
@@ -1085,461 +1086,307 @@ class KazakusGolemShaper(Minion):
 				elif option.name == "Superior Golem": info_GUISync.append(10)
 				else: #effect option。此时info_GUISync为[indexOption_mana, mana, indexOption_keyWord, effect, indexOption_effect]
 					#3次发现完成
-					golem = GolemTable[option.name]
+					golem = GolemTable[option.name]#info_GUISync实际上只需要记录选项的index，因为3次选择都是3个选项
 					indexOption_mana, mana, indexOption_keyWord, effect, indexOption_effect = info_GUISync
 					self.Game.picks_Backup.append(((6, 6), (indexOption_mana, indexOption_keyWord, indexOption_effect),
 											False, (mana, effect, golem)))
 					self.addCardtoHand(KazakusGolemShaper.createGolem(self, mana, effect, golem), self.ID)
+				print("After selecting , Kazakus gets info", info_GUISync)
 		else:
 			mana, effect, golem = option
-			if case == "Random": self.Game.picks_Backup.append((info_RNGSync, info_GUISync, True, option))
+			if case == "Random": self.Game.picks_Backup.append((info_RNGSync, tuple(info_GUISync), True, option))
 			self.addCardtoHand(KazakusGolemShaper.createGolem(self, mana, effect, golem), self.ID)
 
 
 class LesserGolem(Option):
 	name, category = "Lesser Golem", "Option_Minion"
-	mana, attack, health = 1, -1, -1
-
+	mana, attack, health = 1, 1, 1
 
 class GreaterGolem(Option):
 	name, category = "Greater Golem", "Option_Minion"
-	mana, attack, health = 5, -1, -1
-
+	mana, attack, health = 5, 5, 5
 
 class SuperiorGolem(Option):
 	name, category = "Superior Golem", "Option_Minion"
-	mana, attack, health = 10, -1, -1
-
+	mana, attack, health = 10, 10, 10
 
 class Swiftthistle_1(Option):
 	category, effect = "Option_Minion", "Rush"
-	mana, attack, health = 1, -1, -1
-
+	mana, attack, health = 1, 1, 1
 
 class Swiftthistle_5(Option):
 	category, effect = "Option_Minion", "Rush"
-	mana, attack, health = 5, -1, -1
-
+	mana, attack, health = 5, 5, 5
 
 class Swiftthistle_10(Option):
 	category, effect = "Option_Minion", "Rush"
-	mana, attack, health = 10, -1, -1
-
+	mana, attack, health = 10, 10, 10
 
 class Earthroot_1(Option):
 	category, effect = "Option_Minion", "Taunt"
-	mana, attack, health = 1, -1, -1
-
+	mana, attack, health = 1, 1, 1
 
 class Earthroot_5(Option):
 	category, effect = "Option_Minion", "Taunt"
-	mana, attack, health = 5, -1, -1
-
+	mana, attack, health = 5, 5, 5
 
 class Earthroot_10(Option):
 	category, effect = "Option_Minion", "Taunt"
-	mana, attack, health = 10, -1, -1
-
+	mana, attack, health = 10, 10, 10
 
 class Sungrass_1(Option):
 	category, effect = "Option_Minion", "Divine Shield"
-	mana, attack, health = 1, -1, -1
-
+	mana, attack, health = 1, 1, 1
 
 class Sungrass_5(Option):
 	category, effect = "Option_Minion", "Divine Shield"
-	mana, attack, health = 5, -1, -1
-
+	mana, attack, health = 5, 5, 5
 
 class Sungrass_10(Option):
 	category, effect = "Option_Minion", "Divine Shield"
-	mana, attack, health = 10, -1, -1
-
+	mana, attack, health = 10, 10, 10
 
 class Liferoot_1(Option):
 	category, effect = "Option_Minion", "Lifesteal"
-	mana, attack, health = 1, -1, -1
-
+	mana, attack, health = 1, 1, 1
 
 class Liferoot_5(Option):
 	category, effect = "Option_Minion", "Lifesteal"
-	mana, attack, health = 5, -1, -1
-
+	mana, attack, health = 5, 5, 5
 
 class Liferoot_10(Option):
 	category, effect = "Option_Minion", "Lifesteal"
-	mana, attack, health = 10, -1, -1
-
+	mana, attack, health = 10, 10, 10
 
 class Fadeleaf_1(Option):
 	category, effect = "Option_Minion", "Stealth"
-	mana, attack, health = 1, -1, -1
-
+	mana, attack, health = 1, 1, 1
 
 class Fadeleaf_5(Option):
 	category, effect = "Option_Minion", "Stealth"
-	mana, attack, health = 5, -1, -1
-
+	mana, attack, health = 5, 5, 5
 
 class Fadeleaf_10(Option):
 	category, effect = "Option_Minion", "Stealth"
-	mana, attack, health = 10, -1, -1
-
+	mana, attack, health = 10, 10, 10
 
 class GraveMoss_1(Option):
 	category, effect = "Option_Minion", "Poisonous"
-	mana, attack, health = 1, -1, -1
-
+	mana, attack, health = 1, 1, 1
 
 class GraveMoss_5(Option):
 	category, effect = "Option_Minion", "Poisonous"
-	mana, attack, health = 5, -1, -1
-
+	mana, attack, health = 5, 5, 5
 
 class GraveMoss_10(Option):
 	category, effect = "Option_Minion", "Poisonous"
-	mana, attack, health = 10, -1, -1
-
+	mana, attack, health = 10, 10, 10
 
 #Battlecries
 class Wildvine_1(Option):
 	name, category, description = "Wildvine_1", "Option_Minion", "Battlecry: Give your other minions +1/+1"
-	mana, attack, health = 1, -1, -1
-
+	mana, attack, health = 1, 1, 1
 
 class Wildvine_5(Option):
 	name, category, description = "Wildvine_5", "Option_Minion", "Battlecry: Give your other minions +2/+2"
-	mana, attack, health = 5, -1, -1
-
+	mana, attack, health = 5, 5, 5
 
 class Wildvine_10(Option):
 	name, category, description = "Wildvine_10", "Option_Minion", "Battlecry: Give your other minions +4/+4"
-	mana, attack, health = 10, -1, -1
-
+	mana, attack, health = 10, 10, 10
 
 class Gromsblood_1(Option):
 	name, category, description = "Gromsblood_1", "Option_Minion", "Battlecry: Summon a copy of this"
-	mana, attack, health = 1, -1, -1
-
+	mana, attack, health = 1, 1, 1
 
 class Gromsblood_5(Option):
 	name, category, description = "Gromsblood_5", "Option_Minion", "Battlecry: Summon a copy of this"
-	mana, attack, health = 5, -1, -1
-
+	mana, attack, health = 5, 5, 5
 
 class Gromsblood_10(Option):
 	name, category, description = "Gromsblood_10", "Option_Minion", "Battlecry: Summon a copy of this"
-	mana, attack, health = 10, -1, -1
-
+	mana, attack, health = 10, 10, 10
 
 class Icecap_1(Option):
 	name, category, description = "Icecap_1", "Option_Minion", "Battlecry: Freeze a random enemy minion"
-	mana, attack, health = 1, -1, -1
-
+	mana, attack, health = 1, 1, 1
 
 class Icecap_5(Option):
 	name, category, description = "Icecap_5", "Option_Minion", "Battlecry: Freeze two random enemy minions"
-	mana, attack, health = 5, -1, -1
-
+	mana, attack, health = 5, 5, 5
 
 class Icecap_10(Option):
 	name, category, description = "Icecap_10", "Option_Minion", "Battlecry: Freeze all enemy minions"
-	mana, attack, health = 10, -1, -1
-
+	mana, attack, health = 10, 10, 10
 
 class Firebloom_1(Option):
 	name, category, description = "Firebloom_1", "Option_Minion", "Battlecry: Deal 3 damage to a random enemy minion"
-	mana, attack, health = 1, -1, -1
-
+	mana, attack, health = 1, 1, 1
 
 class Firebloom_5(Option):
 	name, category, description = "Firebloom_5", "Option_Minion", "Battlecry: Deal 3 damage to two random enemy minions"
-	mana, attack, health = 5, -1, -1
+	mana, attack, health = 5, 5, 5
 
-
-class Firebloom_10:
+class Firebloom_10(Option):
 	name, category, description = "Firebloom_10", "Option_Minion", "Battlecry: Deal 3 damage to all enemy minions"
-	mana, attack, health = 10, -1, -1
+	mana, attack, health = 10, 10, 10
 
-
-class Mageroyal_1:
+class Mageroyal_1(Option):
 	name, category, description = "Mageroyal_1", "Option_Minion", "Spell Damage +1"
-	mana, attack, health = 1, -1, -1
+	mana, attack, health = 1, 1, 1
 
-
-class Mageroyal_5:
+class Mageroyal_5(Option):
 	name, category, description = "Mageroyal_5", "Option_Minion", "Spell Damage +2"
-	mana, attack, health = 5, -1, -1
+	mana, attack, health = 5, 5, 5
 
-
-class Mageroyal_10:
+class Mageroyal_10(Option):
 	name, category, description = "Mageroyal_10", "Option_Minion", "Spell Damage +4"
-	mana, attack, health = 10, -1, -1
+	mana, attack, health = 10, 10, 10
 
-
-class Kingsblood_1:
+class Kingsblood_1(Option):
 	name, category, description = "Kingsblood_1", "Option_Minion", "Battlecry: Draw a card"
-	mana, attack, health = 1, -1, -1
+	mana, attack, health = 1, 1, 1
 
-
-class Kingsblood_5:
+class Kingsblood_5(Option):
 	name, category, description = "Kingsblood_5", "Option_Minion", "Battlecry: Draw 2 cards"
-	mana, attack, health = 5, -1, -1
+	mana, attack, health = 5, 5, 5
 
-
-class Kingsblood_10:
+class Kingsblood_10(Option):
 	name, category, description = "Kingsblood_10", "Option_Minion", "Battlecry: Draw 4 cards"
-	mana, attack, health = 10, -1, -1
+	mana, attack, health = 10, 10, 10
 
+#Buff other friendly minions
+class KazakusGolem(Minion):
+	Class = "Neutral"
+	def text(self): return type(self).effects
 
-#Mana 1 Golems
-class LesserGolem__Wildvine(Minion):
-	Class, race, name = "Neutral", "", "Lesser Golem"
+class KazakusGolemGolem_Lesser(KazakusGolem):
+	name = "Lesser Golem"
 	mana, attack, health = 1, 1, 1
+	name_CN = "小型魔像"
+	
+class KazakusGolemGolem_Greater(KazakusGolem):
+	name = "Greater Golem"
+	mana, attack, health = 5, 5, 5
+	name_CN = "大型魔像"
+	
+class KazakusGolemGolem_Superior(KazakusGolem):
+	name = "Superior Golem"
+	mana, attack, health = 10, 10, 10
+	name_CN = "超级魔像"
+
+#Golem effect: buff other friendly minions
+class LesserGolem_Wildvine(KazakusGolemGolem_Lesser):
 	index = "THE_BARRENS~Neutral~Minion~1~1~1~~Lesser Golem~Wildvine~Battlecry~Uncollectible"
-	requireTarget, effects, description = False, "", "Battlecry: Give your other minions +1/+1"
-	name_CN = "小型魔像"
-	def text(self): return effectsDict[type(self).effects]
-
+	description = "Battlecry: Give your other minions +1/+1"
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		self.AOE_GiveEnchant(self.Game.minionsonBoard(self.ID, self), 1, 1, name=LesserGolem__Wildvine)
+		self.AOE_GiveEnchant(self.Game.minionsonBoard(self.ID, self), 1, 1, name=LesserGolem_Wildvine)
 
+class GreaterGolem_Wildvine(KazakusGolemGolem_Greater):
+	index = "THE_BARRENS~Neutral~Minion~5~5~5~~Greater Golem~Wildvine~Battlecry~Uncollectible"
+	description = "Battlecry: Give your other minions +2/+2"
+	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
+		self.AOE_GiveEnchant(self.Game.minionsonBoard(self.ID), 2, 2, name=GreaterGolem_Wildvine)
 
-class LesserGolem__Gromsblood(Minion):
-	Class, race, name = "Neutral", "", "Lesser Golem"
-	mana, attack, health = 1, 1, 1
+class SuperiorGolem_Wildvine(KazakusGolemGolem_Superior):
+	index = "THE_BARRENS~Neutral~Minion~10~10~10~~Superior Golem~Wildvine~Battlecry~Uncollectible"
+	description = "Battlecry: Give your other minions +4/+4"
+	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
+		self.AOE_GiveEnchant(self.Game.minionsonBoard(self.ID), 4, 4, name=SuperiorGolem_Wildvine)
+
+#Golem effect: Summon a copy of this
+class LesserGolem_Gromsblood(KazakusGolemGolem_Lesser):
 	index = "THE_BARRENS~Neutral~Minion~1~1~1~~Lesser Golem~Gromsblood~Battlecry~Uncollectible"
-	requireTarget, effects, description = False, "", "Battlecry: Summon a copy of this"
-	name_CN = "小型魔像"
-	def text(self): return effectsDict[type(self).effects]
-
+	description = "Battlecry: Summon a copy of this"
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		self.summon(self.selfCopy(self.ID, self))
 
+class GreaterGolem_Gromsblood(KazakusGolemGolem_Greater):
+	index = "THE_BARRENS~Neutral~Minion~5~5~5~~Greater Golem~Gromsblood~Battlecry~Uncollectible"
+	description = "Battlecry: Summon a copy of this"
+	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
+		self.summon(self.selfCopy(self.ID, self))
 
-class LesserGolem__Icecap(Minion):
-	Class, race, name = "Neutral", "", "Lesser Golem"
-	mana, attack, health = 1, 1, 1
+class SuperiorGolem_Gromsblood(KazakusGolemGolem_Superior):
+	index = "THE_BARRENS~Neutral~Minion~10~10~10~~Superior Golem~Gromsblood~Battlecry~Uncollectible"
+	description = "Battlecry: Summon a copy of this"
+	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
+		self.summon(self.selfCopy(self.ID, self))
+
+#Golem effect: Freeze enemy minions
+class LesserGolem_Icecap(KazakusGolemGolem_Lesser):
 	index = "THE_BARRENS~Neutral~Minion~1~1~1~~Lesser Golem~Icecap~Battlecry~Uncollectible"
-	requireTarget, effects, description = False, "", "Battlecry: Freeze a random enemy minion"
-	name_CN = "小型魔像"
-	def text(self): return effectsDict[type(self).effects]
-
+	description = "Battlecry: Freeze a random enemy minion"
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		if targets := self.Game.minionsAlive(3 - self.ID): self.freeze(numpyChoice(targets))
 
-
-class LesserGolem__Firebloom(Minion):
-	Class, race, name = "Neutral", "", "Lesser Golem"
-	mana, attack, health = 1, 1, 1
-	index = "THE_BARRENS~Neutral~Minion~1~1~1~~Lesser Golem~Firebloom~Battlecry~Uncollectible"
-	requireTarget, effects, description = False, "", "Battlecry: Deal 3 damage to a random enemy minion"
-	name_CN = "小型魔像"
-
-	def text(self):
-		return effectsDict[type(self).effects]
-
-	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		targets = self.Game.minionsAlive(3 - self.ID)
-		if targets: self.dealsDamage(numpyChoice(targets), 3)
-
-
-class LesserGolem__Mageroyal(Minion):
-	Class, race, name = "Neutral", "", "Lesser Golem"
-	mana, attack, health = 1, 1, 1
-	index = "THE_BARRENS~Neutral~Minion~1~1~1~~Lesser Golem~Mageroyal~Spell Damage~Uncollectible"
-	requireTarget, effects, description = False, "Spell Damage", "Spell Damage +1"
-	name_CN = "小型魔像"
-
-	def text(self):
-		return effectsDict[type(self).effects]
-
-
-class LesserGolem__Kingsblood(Minion):
-	Class, race, name = "Neutral", "", "Lesser Golem"
-	mana, attack, health = 1, 1, 1
-	index = "THE_BARRENS~Neutral~Minion~1~1~1~~Lesser Golem~Kingsblood~Battlecry~Uncollectible"
-	requireTarget, effects, description = False, "", "Battlecry: Draw a card"
-	name_CN = "小型魔像"
-
-	def text(self):
-		return effectsDict[type(self).effects]
-
-	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		self.Game.Hand_Deck.drawCard(self.ID)
-
-#Mana 5 Golems
-
-
-#Mana 5 Golems
-class GreaterGolem__Wildvine(Minion):
-	Class, race, name = "Neutral", "", "Greater Golem"
-	mana, attack, health = 5, 5, 5
-	index = "THE_BARRENS~Neutral~Minion~5~5~5~~Greater Golem~Wildvine~Battlecry~Uncollectible"
-	requireTarget, effects, description = False, "", "Battlecry: Give your other minions +2/+2"
-	name_CN = "大型魔像"
-
-	def text(self):
-		return effectsDict[type(self).effects]
-
-	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		self.AOE_GiveEnchant(self.Game.minionsonBoard(self.ID), 2, 2, name=GreaterGolem__Wildvine)
-
-
-class GreaterGolem__Gromsblood(Minion):
-	Class, race, name = "Neutral", "", "Greater Golem"
-	mana, attack, health = 5, 5, 5
-	index = "THE_BARRENS~Neutral~Minion~5~5~5~~Greater Golem~Gromsblood~Battlecry~Uncollectible"
-	requireTarget, effects, description = False, "", "Battlecry: Summon a copy of this"
-	name_CN = "大型魔像"
-
-	def text(self):
-		return effectsDict[type(self).effects]
-
-	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		self.summon(self.selfCopy(self.ID, self))
-
-
-class GreaterGolem__Icecap(Minion):
-	Class, race, name = "Neutral", "", "Greater Golem"
-	mana, attack, health = 5, 5, 5
+class GreaterGolem_Icecap(KazakusGolemGolem_Greater):
 	index = "THE_BARRENS~Neutral~Minion~5~5~5~~Greater Golem~Icecap~Battlecry~Uncollectible"
-	requireTarget, effects, description = False, "", "Battlecry: Freeze two random enemy minions"
-	name_CN = "大型魔像"
-
-	def text(self):
-		return effectsDict[type(self).effects]
-
+	description = "Battlecry: Freeze two random enemy minions"
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		minions = self.Game.minionsAlive(3 - self.ID)
 		self.AOE_Freeze(numpyChoice(minions, min(2, len(minions)), replace=False))
 
-
-class GreaterGolem__Firebloom(Minion):
-	Class, race, name = "Neutral", "", "Greater Golem"
-	mana, attack, health = 5, 5, 5
-	index = "THE_BARRENS~Neutral~Minion~5~5~5~~Greater Golem~Firebloom~Battlecry~Uncollectible"
-	requireTarget, effects, description = False, "", "Battlecry: Deal 3 damage to two random enemy minions"
-	name_CN = "大型魔像"
-
-	def text(self):
-		return effectsDict[type(self).effects]
-
-	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		minions = self.Game.minionsAlive(3 - self.ID)
-		if minions:
-			minions = numpyChoice(minions, min(2, len(minions)), replace=False)
-			self.AOE_Damage(minions, [3] * len(minions))
-
-
-class GreaterGolem__Mageroyal(Minion):
-	Class, race, name = "Neutral", "", "Greater Golem"
-	mana, attack, health = 5, 5, 5
-	index = "THE_BARRENS~Neutral~Minion~5~5~5~~Greater Golem~Mageroyal~Spell Damage~Uncollectible"
-	requireTarget, effects, description = False, "Spell Damage_2", "Spell Damage +2"
-	name_CN = "大型魔像"
-
-	def text(self):
-		return effectsDict[type(self).effects]
-
-
-class GreaterGolem__Kingsblood(Minion):
-	Class, race, name = "Neutral", "", "Greater Golem"
-	mana, attack, health = 5, 5, 5
-	index = "THE_BARRENS~Neutral~Minion~5~5~5~~Greater Golem~Kingsblood~Battlecry~Uncollectible"
-	requireTarget, effects, description = False, "", "Battlecry: Draw 2 cards"
-	name_CN = "大型魔像"
-
-	def text(self):
-		return effectsDict[type(self).effects]
-
-	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		self.Game.Hand_Deck.drawCard(self.ID)
-		self.Game.Hand_Deck.drawCard(self.ID)
-
-#Mana 10 Golems
-
-
-#Mana 10 Golems
-class SuperiorGolem__Wildvine(Minion):
-	Class, race, name = "Neutral", "", "Superior Golem"
-	mana, attack, health = 10, 10, 10
-	index = "THE_BARRENS~Neutral~Minion~10~10~10~~Superior Golem~Wildvine~Battlecry~Uncollectible"
-	requireTarget, effects, description = False, "", "Battlecry: Give your other minions +4/+4"
-	name_CN = "超级魔像"
-	def text(self): return effectsDict[type(self).effects]
-
-	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		self.AOE_GiveEnchant(self.Game.minionsonBoard(self.ID), 4, 4, name=SuperiorGolem__Wildvine)
-
-
-class SuperiorGolem__Gromsblood(Minion):
-	Class, race, name = "Neutral", "", "Superior Golem"
-	mana, attack, health = 10, 10, 10
-	index = "THE_BARRENS~Neutral~Minion~10~10~10~~Superior Golem~Gromsblood~Battlecry~Uncollectible"
-	requireTarget, effects, description = False, "", "Battlecry: Summon a copy of this"
-	name_CN = "超级魔像"
-
-	def text(self):
-		return effectsDict[type(self).effects]
-
-	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		self.summon(self.selfCopy(self.ID, self))
-
-
-class SuperiorGolem__Icecap(Minion):
-	Class, race, name = "Neutral", "", "Superior Golem"
-	mana, attack, health = 10, 10, 10
+class SuperiorGolem_Icecap(KazakusGolemGolem_Superior):
 	index = "THE_BARRENS~Neutral~Minion~10~10~10~~Superior Golem~Icecap~Battlecry~Uncollectible"
-	requireTarget, effects, description = False, "", "Battlecry: Freeze all enemy minions"
-	name_CN = "超级魔像"
-
-	def text(self):
-		return effectsDict[type(self).effects]
-
+	description = "Battlecry: Freeze all enemy minions"
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		self.AOE_Freeze(self.Game.minionsonBoard(3-self.ID))
 
+#Golem effect: Damage enemy minions
+class LesserGolem_Firebloom(KazakusGolemGolem_Lesser):
+	index = "THE_BARRENS~Neutral~Minion~1~1~1~~Lesser Golem~Firebloom~Battlecry~Uncollectible"
+	description = "Battlecry: Deal 3 damage to a random enemy minion"
+	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
+		if targets := self.Game.minionsAlive(3 - self.ID): self.dealsDamage(numpyChoice(targets), 3)
 
-class SuperiorGolem__Firebloom(Minion):
-	Class, race, name = "Neutral", "", "Superior Golem"
-	mana, attack, health = 10, 10, 10
+class GreaterGolem_Firebloom(KazakusGolemGolem_Greater):
+	index = "THE_BARRENS~Neutral~Minion~5~5~5~~Greater Golem~Firebloom~Battlecry~Uncollectible"
+	description = "Battlecry: Deal 3 damage to two random enemy minions"
+	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
+		if minions := self.Game.minionsAlive(3 - self.ID):
+			minions = numpyChoice(minions, min(2, len(minions)), replace=False)
+			self.AOE_Damage(minions, [3] * len(minions))
+
+class SuperiorGolem_Firebloom(KazakusGolemGolem_Superior):
 	index = "THE_BARRENS~Neutral~Minion~10~10~10~~Superior Golem~Firebloom~Battlecry~Uncollectible"
-	requireTarget, effects, description = False, "", "Battlecry: Deal 3 damage to all enemy minions"
-	name_CN = "超级魔像"
-
-	def text(self):
-		return effectsDict[type(self).effects]
-
+	description = "Battlecry: Deal 3 damage to all enemy minions"
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		targets = self.Game.minionsonBoard(3-self.ID)
 		self.AOE_Damage(targets, [3]*len(targets))
 
-
-class SuperiorGolem__Mageroyal(Minion):
-	Class, race, name = "Neutral", "", "Superior Golem"
-	mana, attack, health = 10, 10, 10
+#Golem effect: Spell Damage
+class LesserGolem_Mageroyal(KazakusGolemGolem_Lesser):
+	index = "THE_BARRENS~Neutral~Minion~1~1~1~~Lesser Golem~Mageroyal~Spell Damage~Uncollectible"
+	effects, description = "Spell Damage", "Spell Damage +1"
+	
+class GreaterGolem_Mageroyal(KazakusGolemGolem_Greater):
+	index = "THE_BARRENS~Neutral~Minion~5~5~5~~Greater Golem~Mageroyal~Spell Damage~Uncollectible"
+	effects, description = "Spell Damage_2", "Spell Damage +2"
+	
+class SuperiorGolem_Mageroyal(KazakusGolemGolem_Superior):
 	index = "THE_BARRENS~Neutral~Minion~10~10~10~~Superior Golem~Mageroyal~Spell Damage~Uncollectible"
-	requireTarget, effects, description = False, "Spell Damage_4", "Spell Damage +4"
-	name_CN = "超级魔像"
-
-	def text(self):
-		return effectsDict[type(self).effects]
-
-
-class SuperiorGolem__Kingsblood(Minion):
-	Class, race, name = "Neutral", "", "Superior Golem"
-	mana, attack, health = 10, 10, 10
-	index = "THE_BARRENS~Neutral~Minion~10~10~10~~Superior Golem~Kingsblood~Battlecry~Uncollectible"
-	requireTarget, effects, description = False, "", "Battlecry: Draw 4 cards"
-	name_CN = "超级魔像"
-
-	def text(self):
-		return effectsDict[type(self).effects]
-
+	effects, description = "Spell Damage_4", "Spell Damage +4"
+	
+#Golem effect: Draw card
+class LesserGolem_Kingsblood(KazakusGolemGolem_Lesser):
+	index = "THE_BARRENS~Neutral~Minion~1~1~1~~Lesser Golem~Kingsblood~Battlecry~Uncollectible"
+	description = "Battlecry: Draw a card"
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		for i in (0, 1, 2, 3):
-			self.Game.Hand_Deck.drawCard(self.ID)
+		self.Game.Hand_Deck.drawCard(self.ID)
+
+class GreaterGolem_Kingsblood(KazakusGolemGolem_Greater):
+	index = "THE_BARRENS~Neutral~Minion~5~5~5~~Greater Golem~Kingsblood~Battlecry~Uncollectible"
+	description = "Battlecry: Draw 2 cards"
+	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
+		self.Game.Hand_Deck.drawCard(self.ID)
+		self.Game.Hand_Deck.drawCard(self.ID)
+
+class SuperiorGolem_Kingsblood(KazakusGolemGolem_Superior):
+	index = "THE_BARRENS~Neutral~Minion~10~10~10~~Superior Golem~Kingsblood~Battlecry~Uncollectible"
+	description = "Battlecry: Draw 4 cards"
+	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
+		for i in (0, 1, 2, 3): self.Game.Hand_Deck.drawCard(self.ID)
 
 
 GolemKeywordOptions = {1: (Swiftthistle_1, Earthroot_1, Sungrass_1, Liferoot_1, Fadeleaf_1, GraveMoss_1),
@@ -1552,12 +1399,12 @@ GolemEffectOptions = {1: (Wildvine_1, Gromsblood_1, Icecap_1, Firebloom_1, Mager
 						10: (Wildvine_10, Gromsblood_10, Icecap_10, Firebloom_10, Mageroyal_10, Kingsblood_10),
 					  }
 #Mana 1 Golems
-GolemTable = {"Wildvine_1": LesserGolem__Wildvine, "Wildvine_5": GreaterGolem__Wildvine, "Wildvine_10": SuperiorGolem__Wildvine,
-				"Gromsblood_1": LesserGolem__Gromsblood, "Gromsblood_5": GreaterGolem__Gromsblood, "Gromsblood_10": SuperiorGolem__Gromsblood,
-				"Icecap_1": LesserGolem__Icecap, "Icecap_5": GreaterGolem__Icecap, "Icecap_10": SuperiorGolem__Icecap,
-				"Firebloom_1": LesserGolem__Firebloom, "Firebloom_5": GreaterGolem__Firebloom, "Firebloom_10": SuperiorGolem__Firebloom,
-				"Mageroyal_1": LesserGolem__Mageroyal,  "Mageroyal_5": GreaterGolem__Mageroyal,  "Mageroyal_10": SuperiorGolem__Mageroyal,
-				"Kingsblood_1": LesserGolem__Kingsblood, "Kingsblood_5": GreaterGolem__Kingsblood, "Kingsblood_10": SuperiorGolem__Kingsblood,
+GolemTable = {"Wildvine_1": LesserGolem_Wildvine, "Wildvine_5": GreaterGolem_Wildvine, "Wildvine_10": SuperiorGolem_Wildvine,
+				"Gromsblood_1": LesserGolem_Gromsblood, "Gromsblood_5": GreaterGolem_Gromsblood, "Gromsblood_10": SuperiorGolem_Gromsblood,
+				"Icecap_1": LesserGolem_Icecap, "Icecap_5": GreaterGolem_Icecap, "Icecap_10": SuperiorGolem_Icecap,
+				"Firebloom_1": LesserGolem_Firebloom, "Firebloom_5": GreaterGolem_Firebloom, "Firebloom_10": SuperiorGolem_Firebloom,
+				"Mageroyal_1": LesserGolem_Mageroyal,  "Mageroyal_5": GreaterGolem_Mageroyal,  "Mageroyal_10": SuperiorGolem_Mageroyal,
+				"Kingsblood_1": LesserGolem_Kingsblood, "Kingsblood_5": GreaterGolem_Kingsblood, "Kingsblood_10": SuperiorGolem_Kingsblood,
 			  }
 
 class SouthseaScoundrel(Minion):
@@ -1572,7 +1419,7 @@ class SouthseaScoundrel(Minion):
 		self.Game.Hand_Deck.drawCard(3 - self.ID, index)
 
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		self.discoverfromList(SouthseaScoundrel, comment, ls=self.Game.Hand_Deck.decks[3-self.ID])
+		self.discoverfromCardList(SouthseaScoundrel, comment, ls=self.Game.Hand_Deck.decks[3 - self.ID])
 
 	def discoverDecided(self, option, case, info_RNGSync=None, info_GUISync=None):
 		self.handleDiscoveredCardfromList(option, case, ls=self.Game.Hand_Deck.decks[3 - self.ID],
@@ -1712,8 +1559,8 @@ class PrimordialProtector(Minion):
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		if indices := pickHighestCostIndices(self.Game.Hand_Deck.decks[self.ID], func=lambda card: card.category == "Spell"):
 			cost = self.Game.Hand_Deck.drawCard(self.ID, numpyChoice(indices))[1]
-			self.summon(numpyChoice(self.rngPool("%d-Cost Minions to Summon"%cost))(self.Game, self.ID))
-
+			self.summon(self.newEvolved(cost-1, by=1, ID=self.ID))
+			
 
 """Demon Hunter Cards"""
 class FuryRank3(Spell):
@@ -2211,7 +2058,7 @@ class WarsongWrangler(Minion):
 			if isinstance(card, cardType): card.getsBuffDebuff_inDeck(2, 1, source=typeSelf, name=WarsongWrangler)
 			
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		self.discoverfromList(WarsongWrangler, comment, conditional=lambda card: "Beast" in card.race)
+		self.discoverfromCardList(WarsongWrangler, comment, conditional=lambda card: "Beast" in card.race)
 
 	def discoverDecided(self, option, case, info_RNGSync=None, info_GUISync=None):
 		self.handleDiscoveredCardfromList(option, case, ls=self.Game.Hand_Deck.decks[self.ID],
@@ -2766,15 +2613,16 @@ class Yoink(Spell):
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		self.discoverandGenerate(Yoink, comment, lambda : Yoink.decidePowerPool(self))
 
-	def discoverDecided(self, option, case, info_RNGSync=None, info_GUISync=None):
-		if case == "Discovered" or case == "Random":
-			self.Game.picks_Backup.append((info_RNGSync, info_GUISync, case == "Random", type(option)) )
+	def replaceCurPowerwith(self, option):
 		ManaMod(option, to=0).applies()
 		option.powerReplaced = self.Game.powers[self.ID]
 		self.giveEnchant(option, trig=Trig_SwapBackPowerAfter2Uses, connect=False)
 		option.replacePower()
 
-
+	def discoverDecided(self, option, case, info_RNGSync=None, info_GUISync=None):
+		self.handleDiscoverGeneratedCard(option, case, info_RNGSync, info_GUISync,
+										func=lambda cardType, card: Yoink.replaceCurPowerwith(self, card))
+		
 class EfficientOctobot(Minion):
 	Class, race, name = "Rogue", "Mech", "Efficient Octo-bot"
 	mana, attack, health = 2, 1, 4
@@ -3680,7 +3528,7 @@ class ClericofAnshe(Minion):
 
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=0):
 		if self.Game.Counters.healthRestoredThisTurn[self.ID] > 0:
-			self.discoverfromList(ClericofAnshe, comment, conditional=lambda card: card.category == "Spell")
+			self.discoverfromCardList(ClericofAnshe, comment, conditional=lambda card: card.category == "Spell")
 
 	def discoverDecided(self, option, case, info_RNGSync=None, info_GUISync=None):
 		self.handleDiscoveredCardfromList(option, case, ls=self.Game.Hand_Deck.decks[self.ID],

@@ -24,7 +24,7 @@ def genUpdateBat_byCheckingAgainstInventory():
 
 def writeLine_DownloadfromRepo(filepath, outputFile):
 	command = "bitsadmin /transfer job /download /priority normal "
-	url = "https://raw.githubusercontent.com/AlarmClockCrusher/HearthstoneSim/master/"
+	url = "https://raw.githubusercontent.com/AlarmClockCrusher/PythonHearthstone/main/"
 	s = command + url + filepath.replace('\\', '/') + " %cd%\\" + filepath + '\n'
 	outputFile.write(s)
 
@@ -33,12 +33,14 @@ def writeLine_DownloadfromRepo(filepath, outputFile):
 def downloadRemoteInventory_CheckAgainstLocal():
 	with open('Patch.bat', 'w') as outputFile:
 		command = "bitsadmin /transfer job /download /priority normal "
-		url = "https://raw.githubusercontent.com/AlarmClockCrusher/HearthstoneSim/master/MaterialInventory.txt"
-		outputFile.write(command + url + " %cd%\\MaterialInventory.txt")
+		url = "https://raw.githubusercontent.com/AlarmClockCrusher/PythonHearthstone/main/MaterialInventory.txt"
+		s = command + url + " %cd%\\MaterialInventory.txt"
+		print(s)
+		outputFile.write(s)
 
-	subprocess.Popen(["Patch.bat"], shell=True)
+	subprocess.call(["Patch.bat"])
 	genUpdateBat_byCheckingAgainstInventory()
-	subprocess.Popen(["Patch.bat"], shell=True)
+	subprocess.call(["Patch.bat"])
 	#os.remove("Patch.bat")
 
 

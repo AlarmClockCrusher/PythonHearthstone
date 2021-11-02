@@ -108,7 +108,7 @@ class Death_AegwynntheGuardian(Deathrattle_Minion):
 
 class Death_TirionFordring(Deathrattle_Minion):
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.keeper.func(Ashbringer(self.keeper.Game, self.keeper.ID), func=lambda weapon: self.keeper.equipWeapon(weapon))
+		self.keeper.equipWeapon(Ashbringer(self.keeper.Game, self.keeper.ID))
 
 class Death_ShadowedSpirit(Deathrattle_Minion):
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
@@ -1390,7 +1390,7 @@ class SightlessWatcher(Minion):
 	name_CN = "盲眼观察者"
 
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		self.discoverfromList(SightlessWatcher, comment)
+		self.discoverfromCardList(SightlessWatcher, comment)
 
 	def discoverDecided(self, option, case, info_RNGSync=None, info_GUISync=None):
 		ownDeck = self.Game.Hand_Deck.decks[self.ID]
@@ -1835,7 +1835,7 @@ class Tracking(Spell):
 	name_CN = "追踪术"
 
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		self.discoverfromList(Tracking, comment)
+		self.discoverfromCardList(Tracking, comment)
 
 	def discoverDecided(self, option, case, info_RNGSync=None, info_GUISync=None):
 		self.handleDiscoveredCardfromList(option, case, ls=self.Game.Hand_Deck.decks[self.ID],
@@ -1924,7 +1924,7 @@ class SelectiveBreeder(Minion):
 	name_CN = "选种饲养员"
 
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		self.discoverfromList(SelectiveBreeder, comment, conditional=lambda card: "Beast" in card.race)
+		self.discoverfromCardList(SelectiveBreeder, comment, conditional=lambda card: "Beast" in card.race)
 
 	def discoverDecided(self, option, case, info_RNGSync=None, info_GUISync=None):
 		self.handleDiscoveredCardfromList(option, case, ls=self.Game.Hand_Deck.decks[self.ID],
@@ -2521,7 +2521,7 @@ class ThriveintheShadows(Spell):
 	description = "Discover a spell from your deck"
 	name_CN = "暗中生长"
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		self.discoverfromList(ThriveintheShadows, comment, conditional=lambda card: card.category == "Spell")
+		self.discoverfromCardList(ThriveintheShadows, comment, conditional=lambda card: card.category == "Spell")
 
 	def discoverDecided(self, option, case, info_RNGSync=None, info_GUISync=None):
 		self.handleDiscoveredCardfromList(option, case, ls=self.Game.Hand_Deck.decks[self.ID],
@@ -3266,8 +3266,7 @@ class LakkariFelhound(Minion):
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		inds, i, j = {}, -1, -1
 		for i, card in enumerate(self.Game.Hand_Deck.hands[self.ID]):
-			if card.mana in inds: inds[card.mana].append(i)
-			else: inds[card.mana] = [i]
+			add2ListinDict(i, inds, card.mana)
 		manas = sorted(list(inds.keys()))
 		if len(inds[manas[0]]) > 1:  #Two cards share the same lowest cost
 			i, j = numpyChoice(inds[manas[0]], 2, replace=False)
@@ -3468,7 +3467,7 @@ class Slam(Spell):
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		if target:
 			self.dealsDamage(target, self.calcDamage(2))
-			if target.dead or target.health < 1: self.Game.Hand_Deck.drawCard(self.ID)
+			if not target.dead and target.health > 0: self.Game.Hand_Deck.drawCard(self.ID)
 		return target
 
 

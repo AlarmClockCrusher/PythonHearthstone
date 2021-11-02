@@ -73,106 +73,86 @@ class Hand_Deck:
 					self.Game.mulligans[ID].append(quest)
 			for i in range(mulliganSize[ID] - numQueststoDraw):
 				self.Game.mulligans[ID].append(self.decks[ID].pop())
-	
-	#Mulligan for 1P GUIs, where a single player controls all the plays.
-	def mulliganBoth(self, indices1, indices2):
-		#不涉及GUI的部分
-		indices = {1: indices1, 2: indices2}  # indicesCards是要替换的手牌的列表序号，如[1, 3]
-		GUI = self.Game.GUI
-		for ID in (1, 2):
-			cardstoReplace = []
-			# self.Game.mulligans is the cards currently in players' hands.
-			if indices[ID]:
-				for num in range(1, len(indices[ID]) + 1):
-					# 起手换牌的列表mulligans中根据要换掉的牌的序号从大到小摘掉，然后在原处补充新手牌
-					cardstoReplace.append(self.Game.mulligans[ID].pop(indices[ID][-num]))
-					self.Game.mulligans[ID].insert(indices[ID][-num], self.decks[ID].pop())
-			self.decks[ID] += cardstoReplace
-			for card in self.decks[ID]: card.entersDeck()  # Cards in deck arm their possible trigDeck
-			numpyShuffle(self.decks[ID])  # Shuffle the deck after mulligan
-			# 手牌和牌库中的牌调用entersHand和entersDeck,注册手牌和牌库扳机
-		
-		#决定是否将硬币置入玩家手牌，同时如果手牌中有进入时会变形的牌，则需要改变
-		addCoin = False
-		if not self.Game.heroes[2].Class in SVClasses:
-			self.Game.mulligans[2].append((coin := TheCoin(self.Game, 2)))
-			coin.creator = Game_PlaceHolder
-			addCoin = True
-		if GUI:
-			#在这里生成Sequence，然后存储在seqHolder[-1]里面
-			GUI.mulligan_NewCardsfromDeckAni(addCoin)
-			#The cards are added into hands and the sequence is further extended
-			GUI.mulligan_MoveCards2Hand()
-			self.Game.Manas.calcMana_All() #Mana change will be animated
-			for ID in (1, 2):
-				for card in self.hands[ID] + self.decks[ID]:
-					if "Start of Game" in card.index:
-						GUI.seqHolder[-1].append(GUI.FUNC(GUI.showOffBoardTrig, card, "Appear"))
-						card.startofGame()
-			
-			GUI.turnStartAni()
-			self.drawCard(1)
-			GUI.decideCardColors()
-			GUI.seqReady = True
-		else:
-			self.Game.Manas.calcMana_All()  #Mana change will be animated
-			for ID in (1, 2):
-				for card in self.hands[ID] + self.decks[ID]:
-					if "Start of Game" in card.index:
-						card.startofGame()
-			self.drawCard(1)
-		
-	# 双人游戏中一方很多控制自己的换牌，之后两个游戏中复制对方的手牌和牌库信息
-	def mulligan1Side(self, ID, indices):
-		GUI = self.Game.GUI
-		cardstoReplace = []
-		if indices:
-			for num in range(1, len(indices) + 1):
-				cardstoReplace.append(self.Game.mulligans[ID].pop(indices[-num]))
-				self.Game.mulligans[ID].insert(indices[-num], self.decks[ID].pop())
-		#self.hands[ID] = self.Game.mulligans[ID]
-		self.decks[ID] += cardstoReplace
-		numpyShuffle(self.decks[ID])
 
-		addCoin = False
-		#如果玩家操纵的是2号的话，则把硬币置入手牌中
-		if ID == 2 and not self.Game.heroes[2].Class in SVClasses:
+	"""1P mode. Mulligan and start game immediately"""
+	#根据要换掉的牌在起手列表Game.mulligans[ID]中的序号indices决定替换
+	def updateMulliganDeck(self, ID, indices): #In self.Game.mulligans are cards that will stay in player's hand
+		mulligans = self.Game.mulligans[ID]
+		cardstoReplace = [mulligans[i] for i in indices]
+		for i in indices: mulligans[i] = self.decks[ID].pop()
+		self.decks[ID] += cardstoReplace
+		for card in self.decks[ID]: card.entersDeck()  # Cards in deck arm their possible trigDeck
+		numpyShuffle(self.decks[ID])  # Shuffle the deck after mulligan
+
+	# 决定是否将硬币置入P2手牌
+	def checkifAddCoin2Hand(self, ID):
+		if ID == 2 and not self.Game.heroes[2].Class in SVClasses: #影之诗的2号玩家没有硬币
 			self.Game.mulligans[2].append((coin := TheCoin(self.Game, 2)))
 			coin.creator = Game_PlaceHolder
-			addCoin = True
-		if GUI:
-			GUI.mulligan_NewCardsfromDeckAni(ID, addCoin)
-			#调度得到的牌已经被 移入手牌Hand_Deck.hands里面，mulligans也被清空
-		else: pass
-		
-	# 在双方给予了自己的手牌和牌库信息之后把它们注册同时触发游戏开始时的效果
-	def finalizeHandDeck_StartGame(self):  # This ID is the opponent's ID
-		for ID in (1, 2):  # 直接拿着mulligans开始
-			self.hands[ID] = [card.entersHand() for card in self.hands[ID]]
-			for card in self.decks[ID]: card.entersDeck()
-			self.Game.mulligans[ID] = []
-		
-		GUI = self.Game.GUI
-		if GUI:
-			GUI.seqReady = False
-			GUI.seqHolder = [GUI.SEQUENCE(GUI.FUNC(GUI.deckZones[1].draw, len(self.decks[1]), len(self.hands[1])),
-										  GUI.FUNC(GUI.deckZones[2].draw, len(self.decks[2]), len(self.hands[2])),
-										  )]
-			GUI.seqHolder[-1].append(GUI.PARALLEL(GUI.handZones[1].placeCards(False), GUI.handZones[2].placeCards(False))
-									 )
-			GUI.turnEndButtonAni_Flip2RightPitch()
-			
-		self.Game.Manas.calcMana_All()
+			return True
+		return False
+
+	#Cards finally enters the hand from mulligan
+	def moveMulligans2Hand(self, ID):
+		cardsChanged, cardsNew = [], []
+		ls_Hands = self.Game.Hand_Deck.hands[ID] = []
+		for i, card in enumerate(self.Game.mulligans[ID]):
+			ls_Hands.append((newCard := card.entersHand()))
+			if newCard is not card:
+				cardsChanged.append(card)
+				cardsNew.append(newCard)
+		self.Game.mulligans[ID] = []
+
+		return cardsChanged, cardsNew
+
+	#Both 1P and 2P will share this. Calc manas of cards in hand, Start of Game effects and P1 draws card
+	def startofGameEffects_Draw(self, GUI, seq):
+		self.Game.Manas.calcMana_All() #Mana change will be animated
 		for ID in (1, 2):
 			for card in self.hands[ID] + self.decks[ID]:
 				if "Start of Game" in card.index:
-					if GUI: GUI.seqHolder[-1].append(GUI.FUNC(GUI.showOffBoardTrig, card, "Appear"))
+					if GUI: seq.append(GUI.FUNC(GUI.showOffBoardTrig, card, "Appear"))
 					card.startofGame()
 		if GUI and GUI.ID == 1: GUI.turnStartAni()
 		self.drawCard(1)
 		if GUI:
 			GUI.decideCardColors()
 			GUI.seqReady = True
+
+	# Mulligan for 1P GUIs, where a single player controls all the plays.
+	def mulliganBoth(self, indices1, indices2):  # indicesCards是要替换掉的手牌的列表序号，如[0, 2]
+		self.updateMulliganDeck(1, indices1)
+		self.updateMulliganDeck(2, indices2)
+		addCoin = self.checkifAddCoin2Hand(2)
+
+		if GUI := self.Game.GUI:  # 此时hands为空，需要把mulligans移到hands中
+			GUI.replaceMulligan_PrepSeqHolder(addCoin=addCoin, for1P=True, ID=1)
+			cardsChanged_1, cardsNew_1 = self.moveMulligans2Hand(1)
+			cardsChanged_2, cardsNew_2 = self.moveMulligans2Hand(2)
+			GUI.mulligan_TransformandMoveCards2Hand(cardsChanged_1 + cardsChanged_2, cardsNew_1 + cardsNew_2)
+		self.startofGameEffects_Draw(GUI, GUI.seqHolder[-1] if GUI else None)
+
+	# 双人游戏中一方只控制自己的换牌，之后通过Server进行双方的信息交换
+	def mulligan1Side(self, ID, indices):
+		self.updateMulliganDeck(ID, indices)
+		addCoin = self.checkifAddCoin2Hand(ID)
+		
+		if GUI := self.Game.GUI: GUI.replaceMulligan_PrepSeqHolder(addCoin=addCoin, for1P=False, ID=ID)
+		#2P GUI会调用sendMulliganedDeckHand2Server
+
+	# 在双方给予了自己的手牌和牌库信息之后把它们注册同时触发游戏开始时的效果
+	def finalizeHandDeck_StartGame(self):  # This ID is the opponent's ID
+		if GUI := self.Game.GUI:
+			GUI.seqHolder, GUI.seqReady = [GUI.SEQUENCE()], False
+		for ID in (1, 2):  # 直接拿着mulligans开始
+			for card in self.decks[ID]: card.entersDeck()
+		cardsChanged_1, cardsNew_1 = self.moveMulligans2Hand(1)
+		cardsChanged_2, cardsNew_2 = self.moveMulligans2Hand(2)
+		if GUI:
+			GUI.mulligan_TransformandMoveCards2Hand(cardsChanged_1 + cardsChanged_2, cardsNew_1 + cardsNew_2)
+			GUI.turnEndButtonAni_Flip2RightPitch()
+
+		self.startofGameEffects_Draw(GUI, GUI.seqHolder[-1] if GUI else None)
 
 	def handNotFull(self, ID):
 		return len(self.hands[ID]) < self.handUpperLimit[ID]
@@ -393,12 +373,13 @@ class Hand_Deck:
 				self.Game.Counters.numBurialRiteThisGame[ID] += 1
 				self.Game.sendSignal("BurialRite", ID, None, minion, 0, "")
 
-	#card can be a list(for discarding multiple cards), or can be a single int or card keeper
+	#card can be a list(for discarding multiple cards), or can be a single int or card object
+	#When discarding multiple cards (not all), the cards must a list/tuple/array of indices
 	def discard(self, ID, card, getAll=False):
 		if getAll or isinstance(card, (list, tuple, numpy.ndarray)):
 			if self.hands[ID]:
 				if getAll: cards = self.extractfromHand(None, ID=ID, getAll=True, enemyCanSee=True, linger=False)[0]
-				else: cards = [self.extractfromHand(i, ID=ID, enemyCanSee=True, linger=False)[0] for i in card]
+				else: cards = [self.extractfromHand(i, ID=ID, enemyCanSee=True, linger=False)[0] for i in reversed(sorted(card))]
 				for card in cards:
 					self.Game.sendSignal("CardDiscarded", card.ID, None, card, 1, "")
 					card.whenDiscarded()
@@ -411,8 +392,7 @@ class Hand_Deck:
 			return None
 		else:  # Discard a chosen card.
 			i = card if isinstance(card, (int, numpy.int32, numpy.int64)) else self.hands[ID].index(card)
-			card = self.hands[ID].pop(i)
-			card.leavesHand()
+			(card := self.hands[ID].pop(i)).leavesHand()
 			if self.Game.GUI: self.Game.GUI.cardsLeaveHandAni([card], ID=ID, enemyCanSee=True, linger=False)
 			self.Game.sendSignal("CardDiscarded", card.ID, None, card, 1, "")
 			card.whenDiscarded()
@@ -497,20 +477,11 @@ class Hand_Deck:
 
 from DB_CardPools import *
 
-Default1 = [FindtheImposter, Backstab, Preparation, Shadowstep, BladedCultist, DeadlyPoison, SinisterStrike, Swashburglar, ColdBlood, PatientAssassin, VanessaVanCleef,
-			PlagueScientist, SI7Agent, Assassinate, AssassinsBlade, TombPillager, BlackjackStunner, Spymistress, Ambush, AshtongueSlayer,
-			Bamboozle, DirtyTricks, ShadowjewelerHanar, Akama, GreyheartSage, CursedVagrant, BrainFreeze, WandThief, PotionofIllusion, JandiceBarov, JandiceBarov,
-			SecretPassage, Plagiarize, Coerce, SelfSharpeningSword, VulperaToxinblade, InfiltratorLilian, ShiftySophomore, Steeldancer, CuttingClass,
-			PrizePlunderer, FoxyFraud, ShadowClone, SweetTooth, SecretPassage, SavoryDeviateDelight, Swindle, TenwuoftheRedSmoke, CloakofShadows, TicketMaster, MalevolentStrike, GrandEmpressShekzara,
-			KeywardenIvory, Shenanigans, SparkjoyCheat, Yoink, EfficientOctobot, WickedStabRank1, FieldContact,
-			SwinetuskShank, ApothecaryHelbrim, OilRigAmbusher, ScabbsCutterbutter, SavoryDeviateDelight, WaterMoccasin, ShroudofConcealment, SI7Extortion, Garrote, MaestraoftheMasquerade,
-			CounterfeitBlade, LoanShark, SI7Operative, SketchyInformation, SI7Informant, SI7Assassin, BlackwaterCutlass, Parrrley, ]
+Default1 = [#JandiceBarov, Tracking, Tracking, GuesstheWeight, Guidance, KazakusGolemShaper, SightlessWatcher,
+			KazakusGolemShaper, KazakusGolemShaper, KazakusGolemShaper, KazakusGolemShaper, KazakusGolemShaper, JandiceBarov, ]
+			#PackKodo, BlessedGoods, SeekGuidance, ApexisSmuggler, ShadowjewelerHanar, FreezingTrap, RinlingsRifle, RingToss,
+			#BoggspineKnuckles, StewardofScrolls, SphereofSapience, SphereofSapience, BlackwaterCutlass,]
 
-Default2 = [RaidtheDocks, BloodsailDeckhand, ShieldSlam, Whirlwind, CruelTaskmaster, Execute, Slam, WarsongCommander, Armorsmith, FrothingBerserker,
-			Brawl, Shieldmaiden, Gorehowl, GrommashHellscream, ImprisonedGanarg, SwordandBoard, CorsairCache, Bladestorm,
-			BonechewerRaider, BulwarkofAzzinoth, WarmaulChallenger, KargathBladefist, BloodboilBrute, Coerce, CuttingClass,
-			AthleticStudies, ShieldofHonor, InFormation, CeremonialMaul, LordBarov, Playmaker, ReapersScythe, Troublemaker, Rattlegore,
-			RingmastersBaton, StageHand, FeatofStrength,
-			NitroboostPoison, SpikedWheel, Ironclad, Barricade, WarsongEnvoy, BulkUp, ConditioningRank1, Rokara, OutridersAxe, Rancor,
-			WhirlingCombatant, MorshanElite, OverlordSaurfang, ManatArms, KreshLordofTurtling, Provoke, ShiverTheirTimbers, HarborScamp,
-			CargoGuard, HeavyPlate, StormwindFreebooter, RemoteControlledGolem, CowardlyGrunt, Lothar, MantheCannons, DefiasCannoneer, BlacksmithHammer, ]
+Default2 = [#JandiceBarov, Tracking, Tracking, GuesstheWeight, Guidance, KazakusGolemShaper, SightlessWatcher,
+			KazakusGolemShaper, KazakusGolemShaper, KazakusGolemShaper, JandiceBarov,
+			]

@@ -14,6 +14,10 @@ class GameRuleAura_AuctioneerJaxon(GameRuleAura):
 class Aura_BattlegroundBattlemaster(Aura_AlwaysOn):
 	effGain, targets = "Windfury", "Neighbors"
 
+class Aura_MrSmite(Aura_AlwaysOn):
+	effGain, targets = "Charge", "All"
+	def applicable(self, target): return "Pirate" in target.race
+
 
 """Trigs"""
 class Trig_SwordofaThousandTruth(TrigBoard):
@@ -553,6 +557,31 @@ class Trig_Lothar(TrigBoard):
 			if minion.health < 1 or minion.dead: self.keeper.giveEnchant(self.keeper, 3, 3, name=Lothar)
 			
 
+class Trig_EdwinDefiasKingpin(TrigBoard):
+	signals = ("NewTurnStarts", "MinionBeenPlayed", "SpellBeenPlayed", "WeaponBeenPlayed", "HeroBeenPlayed")
+	def __init__(self, keeper, card=None):
+		super().__init__(keeper)
+		self.savedObj = card
+
+	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
+		return self.keeper.onBoard and (signal.startswith("New") or (subject.ID == self.keeper.ID and subject == self.savedObj))
+
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		keeper = self.keeper
+		if signal.startswith("New"): self.keeper.losesTrig(self)
+		else:
+			card, mana, entersHand = keeper.Game.Hand_Deck.drawCard(keeper.ID)
+			if entersHand and card.inHand and keeper.onBoard:
+				self.savedObj = card
+				keeper.giveEnchant(keeper, statEnchant=Enchantment_Cumulative(2, 2, name=EdwinDefiasKingpin))
+
+	def selfCopy(self, recipient):
+		return type(self)(recipient, self.savedObj)
+
+	def assistCreateCopy(self, Copy):
+		Copy.savedObj = self.savedObj.creatCopy(Copy.keeper.Game)
+
+
 class Trig_Suckerhook(TrigBoard):
 	signals = ("TurnEnds",)
 	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
@@ -676,7 +705,11 @@ class Death_TamsinsDreadsteed(Deathrattle_Minion):
 class Death_CowardlyGrunt(Deathrattle_Minion):
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.try_SummonfromDeck()
-		
+
+class Death_CookietheCook(Deathrattle_Minion):
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		self.keeper.equipWeapon(CookiesStirringRod(self.keeper.Game, self.keeper.ID))
+
 class Death_Hullbreaker(Deathrattle_Minion):
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		if (mana := self.keeper.drawCertainCard(lambda card: card.category == "Spell")[1]) > 0:
@@ -764,7 +797,7 @@ class DeeprunEngineer(Minion):
 		
 	def discoverDecided(self, option, case, info_RNGSync=None, info_GUISync=None):
 		self.handleDiscoverGeneratedCard(option, case, info_RNGSync, info_GUISync)
-		ManaMod(option, by=-1).applies()
+		if option.inHand: ManaMod(option, by=-1).applies()
 
 
 class EncumberedPackMule(Minion):
@@ -800,7 +833,7 @@ class PandarenImporter(Minion):
 			   [[card for card in pools.ClassCards[Class] if card.category == "Spell"] for Class in pools.Classes]
 
 	def decideSpellPool(self):
-		pool = self.rngPool("Spells as " + classforDiscover(self))
+		pool = self.rngPool(classforDiscover(self)+" Spells")
 		origDeck = self.Game.Hand_Deck.initialDecks[self.ID]
 		return [card for card in pool if card not in origDeck]
 
@@ -994,7 +1027,7 @@ class FlightmasterDungar(Minion):
 	
 	def discoverDecided(self, option, case, info_RNGSync=None, info_GUISync=None):
 		optionType = type(option)
-		if case != "Guided": self.Game.picks_Backup.append((info_RNGSync, info_GUISync, case == "Random", optionType))
+		if case != "Guided": self.Game.picks_Backup.append((info_RNGSync, tuple(info_GUISync), case == "Random", optionType))
 		FlightmasterDungar.goDormant(self, optionType)
 
 class Westfall(Option):
@@ -1930,6 +1963,14 @@ class ReachthePortalRoom(Quest):
 	name_CN = "抵达传送大厅"
 	numNeeded, newQuest, reward = 3, None, ArcanistDawngrasp
 	race, trigBoard = "Questline", Trig_SorcerersGambit
+	def text(self):
+		trig = next((trig for trig in self.trigsBoard if isinstance(trig, Trig_SorcerersGambit)), None)
+		if trig and len(trig.savedObjs) < 3:
+			s = "Fire: %d\nFrost: %d\nArcane: %d"%(0 if "Fire" in trig.savedObj else 1,
+												   0 if "Frost" in trig.savedObj else 1,
+												   0 if "Arcane" in trig.savedObj else 1)
+			return s
+		return ""
 
 class StallforTime(Quest):
 	Class, name = "Mage", "Stall for Time"
@@ -1941,6 +1982,8 @@ class StallforTime(Quest):
 	race, trigBoard = "Questline", Trig_SorcerersGambit
 	def questEffect(self, game, ID):
 		self.discoverandGenerate_MultiplePools(StallforTime, '', poolsFunc=lambda: SorcerersGambit.decidePools(self))
+
+	def text(self): return ReachthePortalRoom.text(self)
 
 class SorcerersGambit(Quest):
 	Class, school, name = "Mage", "", "Sorcerer's Gambit"
@@ -1967,7 +2010,9 @@ class SorcerersGambit(Quest):
 
 	def questEffect(self, game, ID):
 		self.drawCertainCard(lambda card: card.category == "Spell")
-		
+
+	def text(self): return ReachthePortalRoom.text(self)
+
 	def decidePools(self):
 		Class = classforDiscover(self)
 		return [self.rngPool("Fire Spells as " + Class),
@@ -2142,6 +2187,11 @@ class AvengetheFallen(Quest):
 	name_CN = "为逝者复仇"
 	numNeeded, newQuest, reward = 3, None, LightbornCariel
 	race, trigBoard = "Questline", Trig_RisetotheOccasion
+	def text(self):
+		s = ''
+		if trig := next((trig for trig in self.trigsBoard if isinstance(trig, Trig_RisetotheOccasion)), None):
+			for card in trig.savedObjs: s += card.__name__ + ' '
+		return s
 
 class PavetheWay(Quest):
 	Class, name = "Paladin", "Pave the Way"
@@ -2156,6 +2206,8 @@ class PavetheWay(Quest):
 		if type(power) in Basicpowers:
 			Upgradedpowers[Basicpowers.index(type(power))](game, ID).replacePower()
 
+	def text(self): return AvengetheFallen.text(self)
+
 class RisetotheOccasion(Quest):
 	Class, name = "Paladin", "Rise to the Occasion"
 	requireTarget, mana, effects = False, 1, ""
@@ -2166,6 +2218,8 @@ class RisetotheOccasion(Quest):
 	race, trigBoard = "Questline", Trig_RisetotheOccasion
 	def questEffect(self, game, ID):
 		self.equipWeapon(LightsJustice(game, ID))
+
+	def text(self): return AvengetheFallen.text(self)
 
 
 class NobleMount(Spell):
@@ -2310,6 +2364,11 @@ class IlluminatetheVoid(Quest):
 	name_CN = "照亮虚空"
 	numNeeded, newQuest, reward = 2, None, XyrellatheSanctified
 	race, trigBoard = "Questline", Trig_IlluminatetheVoid
+	def text(self):
+		trig = next((trig for trig in self.trigsBoard if isinstance(trig, Trig_IlluminatetheVoid)), None)
+		if trig and len(trig.savedObjs) < 2:
+			return "7: %d\n8: %d"%(0 if 7 in trig.savedObj else 1, 0 if 8 in trig.savedObj else 1)
+		return ""
 
 class DiscovertheVoidShard(Quest):
 	Class, name = "Priest", "Discover the Void Shard"
@@ -2320,7 +2379,13 @@ class DiscovertheVoidShard(Quest):
 	numNeeded, newQuest, reward = 2, IlluminatetheVoid, None
 	race, trigBoard = "Questline", Trig_DiscovertheVoidShard
 	def questEffect(self, game, ID):
-		self.discoverfromList(SeekGuidance, '')
+		self.discoverfromCardList(SeekGuidance, '')
+
+	def text(self):
+		trig = next((trig for trig in self.trigsBoard if isinstance(trig, Trig_DiscovertheVoidShard)), None)
+		if trig and len(trig.savedObjs) < 2:
+			return "5: %d\n6: %d"%(0 if 5 in trig.savedObj else 1, 0 if 6 in trig.savedObj else 1)
+		return ""
 
 class SeekGuidance(Quest):
 	Class, name = "Priest", "Seek Guidance"
@@ -2331,13 +2396,20 @@ class SeekGuidance(Quest):
 	numNeeded, newQuest, reward = 3, DiscovertheVoidShard, None
 	race, trigBoard = "Questline", Trig_SeekGuidance
 	def questEffect(self, game, ID):
-		self.discoverfromList(SeekGuidance, '')
+		self.discoverfromCardList(SeekGuidance, '')
+
+	def text(self):
+		trig = next((trig for trig in self.trigsBoard if isinstance(trig, Trig_DiscovertheVoidShard)), None)
+		if trig and len(trig.savedObjs) < 3:
+			return "2: %d\n3: %d\n4: %d"%(0 if 2 in trig.savedObj else 1,
+										  0 if 3 in trig.savedObj else 1,
+										  0 if 4 in trig.savedObj else 1)
+		return ""
 
 	def discoverDecided(self, option, case, info_RNGSync=None, info_GUISync=None):
 		self.handleDiscoveredCardfromList(option, case, ls=self.Game.Hand_Deck.decks[self.ID],
 										  func=lambda index, card: self.Game.Hand_Deck.drawCard(self.ID, index),
 										  info_RNGSync=info_RNGSync, info_GUISync=info_GUISync)
-
 
 class PurifiedShard(Spell):
 	Class, school, name = "Priest", "Holy", "Purified Shard"
@@ -2478,7 +2550,7 @@ class Spyomatic(Minion):
 	name_CN = "间谍机器人"
 	
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		self.discoverfromList(Spyomatic, comment, ls=self.Game.Hand_Deck.decks[3-self.ID])
+		self.discoverfromCardList(Spyomatic, comment, ls=self.Game.Hand_Deck.decks[3 - self.ID])
 	
 	def discoverDecided(self, option, case, info_RNGSync=None, info_GUISync=None):
 		deck = self.Game.Hand_Deck.decks[3-self.ID]
@@ -3290,6 +3362,32 @@ class Multicaster(Minion):
 		for _ in range(len(schools)): self.Game.Hand_Deck.drawCard(self.ID)
 
 
+class MrSmite(Minion):
+	Class, race, name = "Neutral", "Pirate", "Mr. Smite"
+	mana, attack, health = 6, 6, 5
+	index = "STORMWIND~Neutral~Minion~6~6~5~Pirate~Mr. Smite~Legendary"
+	requireTarget, effects, description = False, "", "Your Pirates have Charge"
+	name_CN = "重拳先生"
+	aura = Aura_MrSmite
+
+
+class GoliathSneedsMasterpiece(Minion):
+	Class, race, name = "Neutral", "Mech", "Goliath, Sneed's Masterpiece"
+	mana, attack, health = 8, 8, 8
+	index = "STORMWIND~Neutral~Minion~8~8~8~Mech~Goliath, Sneed's Masterpiece~Battlecry~Legendary"
+	requireTarget, effects, description = False, "", "Battlecry: Fire five rockets at enemy minions that deal 2 damage each. (You pick the targets!)"
+	name_CN = "哥利亚，斯德尼的杰作"
+	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
+		for _ in (0, 1, 2, 3, 4):
+			if minions := self.Game.minionsAlive(3-self.ID):
+				self.choosefromBoard(GoliathSneedsMasterpiece, comment, ls=minions)
+			else: break
+
+	def chooseDecided(self, option, case, ls):
+		self.handleChooseDecision(option, case, ls,
+								  func=lambda cardType, card: self.dealsDamage(card, 2))
+
+
 class MaddestBomber(Minion):
 	Class, race, name = "Neutral", "", "Maddest Bomber"
 	mana, attack, health = 8, 9, 8
@@ -3419,7 +3517,7 @@ class MoonlitGuidance(Spell):
 	description = "Discover a copy of a card in your deck. If you play it this turn, draw the original"
 	name_CN = "月光指引"
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		self.discoverfromList(MoonlitGuidance, comment)
+		self.discoverfromCardList(MoonlitGuidance, comment)
 
 	def discoverDecided(self, option, case, info_RNGSync=None, info_GUISync=None):
 		self.handleDiscoveredCardfromList(option, case, ls=self.Game.Hand_Deck.decks[self.ID],
@@ -3678,11 +3776,23 @@ class Parrrley(Spell):
 			self.entersDeck()
 
 
+class EdwinDefiasKingpin(Minion):
+	Class, race, name = "Rogue", "Pirate", "Edwin, Defias Kingpin"
+	mana, attack, health = 4, 4, 4
+	index = "STORMWIND~Rogue~Minion~4~4~4~Pirate~Edwin, Defias Kingpin~Battlecry~Legendary"
+	requireTarget, effects, description = False, "", "Battlecry: Draw a card. If you play it this turn, gain +2/+2 and repeat this effect"
+	name_CN = "艾德温，迪菲亚首脑"
+	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
+		card, mana, entersHand = self.Game.Hand_Deck.drawCard(self.ID)
+		if entersHand and card.inHand and self.onBoard:
+			self.getsTrig(Trig_EdwinDefiasKingpin(self, card))
+
+
 #Shaman cards
 class BrilliantMacaw(Minion):
 	Class, race, name = "Shaman", "Beast", "Brilliant Macaw"
 	mana, attack, health = 3, 3, 3
-	index = "STORMWIND~Shaman~Minion~3~3~3~Shaman~Brilliant Macaw~Battlecry"
+	index = "STORMWIND~Shaman~Minion~3~3~3~Beast~Brilliant Macaw~Battlecry"
 	requireTarget, effects, description = False, "", "Battlecry: Repeat the last Battlecry you played"
 	name_CN = "艳丽的金刚鹦鹉"
 	def effCanTrig(self):
@@ -3691,6 +3801,21 @@ class BrilliantMacaw(Minion):
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		if cards := [card for card in self.Game.Counters.cardsPlayedThisGame[self.ID] if "~Battlecry" in card.index]:
 			self.invokeBattlecry(cards[-1])
+
+
+class CookietheCook(Minion):
+	Class, race, name = "Shaman", "Murloc", "Cookie the Cook"
+	mana, attack, health = 3, 2, 3
+	index = "STORMWIND~Shaman~Minion~3~2~3~Murloc~Cookie the Cook~Lifesteal~Deathrattle~Legendary"
+	requireTarget, effects, description = False, "Lifesteal", "Lifesteal. Deathrattle: Equip a 2/3 Stirring Rod with Lifesteal"
+	name_CN = "厨师曲奇"
+	deathrattle = Death_CookietheCook
+
+class CookiesStirringRod(Weapon):
+	Class, name, description = "Shaman", "Cookie's Stirring Rod", "Lifesteal"
+	mana, attack, durability, effects = 3, 2, 3, "Lifesteal"
+	index = "STORMWIND~Shaman~Weapon~3~2~3~Stirring Rod~Lifesteal~Legendary~Uncollectible"
+	name_CN = "曲奇的搅汤棒"
 
 
 class Suckerhook(Minion):
@@ -3976,6 +4101,9 @@ TrigsDeaths_Stormwind = {Death_ElwynnBoar: (ElwynnBoar, "Deathrattle: If you had
 						Death_LoanShark: (LoanShark, "Deathrattle: Add two Coins to your hand"),
 						Death_TamsinsDreadsteed: (TamsinsDreadsteed, "Deathrattle: At the end of the turn, summon Tamsin's Dreadsteed"),
 						Death_CowardlyGrunt: (CowardlyGrunt, "Deathrattle: Summon a minion from your deck"),
+						Trig_EdwinDefiasKingpin: (EdwinDefiasKingpin, "Play the card drawn to gain +2/+2 and repeat this effect"),
+						Death_CookietheCook: (CookietheCook, "Deathrattle: Equip a 2/3 Stirring Rod with Lifesteal"),
+						Death_Hullbreaker: (Hullbreaker, "Deathrattle: Draw a spell. Your hero takes damage equal to its Cost")
 						}
 
 Stormwind_Cards = [
@@ -4020,7 +4148,7 @@ Stormwind_Cards = [
 		Provoke, RaidtheDocks, CapnRokara, ShiverTheirTimbers, HarborScamp, CargoGuard, HeavyPlate, StormwindFreebooter,
 		RemoteControlledGolem, GolemParts, CowardlyGrunt, Lothar,
 		#Neutral
-		GolakkaGlutton, Multicaster, MaddestBomber,
+		GolakkaGlutton, Multicaster, MaddestBomber, MrSmite, GoliathSneedsMasterpiece,
 		#Demon Hunter
 		CrowsNestLookout, NeedforGreed, ProvingGrounds,
 		#Druid
@@ -4034,9 +4162,9 @@ Stormwind_Cards = [
 		#Priest
 		DefiasLeper, AmuletofUndying, Copycat,
 		#Rogue
-		BlackwaterCutlass, Parrrley,
+		BlackwaterCutlass, Parrrley, EdwinDefiasKingpin,
 		#Shaman
-		BrilliantMacaw, Suckerhook,
+		BrilliantMacaw, Suckerhook, CookietheCook, CookiesStirringRod,
 		#Warlock
 		ShadowbladeSlinger, WickedShipment, Hullbreaker,
 		#Warrior
@@ -4082,7 +4210,7 @@ Stormwind_Cards_Collectible = [
 		Provoke, RaidtheDocks, ShiverTheirTimbers, HarborScamp, CargoGuard, HeavyPlate, StormwindFreebooter,
 		RemoteControlledGolem, CowardlyGrunt, Lothar,
 		#Neutral
-		GolakkaGlutton, Multicaster, MaddestBomber,
+		GolakkaGlutton, Multicaster, MrSmite, GoliathSneedsMasterpiece, MaddestBomber,
 		#Demon Hunter
 		CrowsNestLookout, NeedforGreed, ProvingGrounds,
 		#Druid
@@ -4096,9 +4224,9 @@ Stormwind_Cards_Collectible = [
 		#Priest
 		DefiasLeper, AmuletofUndying, Copycat,
 		#Rogue
-		BlackwaterCutlass, Parrrley,
+		BlackwaterCutlass, Parrrley, EdwinDefiasKingpin,
 		#Shaman
-		BrilliantMacaw, Suckerhook,
+		BrilliantMacaw, Suckerhook, CookietheCook,
 		#Warlock
 		ShadowbladeSlinger, Hullbreaker, WickedShipment,
 		#Warrior

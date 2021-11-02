@@ -142,6 +142,10 @@ class Btn_Card:
 			if not self.isPlayed and category != "Dormant": self.models["stats"].show()
 			else: self.models["stats"].hide()
 		# Those models that require special treatment
+		if category not in ("Spell", "Hero"):
+			for name in ("Hourglass", "Trigger", "Lifesteal", "Deathrattle", "Poisonous", "SpecTrig"):
+				if name in self.icons: self.icons[name].np.hide()
+
 		if category == "Hero":
 			if not self.isPlayed:
 				self.models["frame"].hide()
@@ -163,27 +167,27 @@ class Btn_Card:
 		if category == "Dormant": # 休眠物不进行数值显示
 			for text in self.texts.values(): text.node().setText('')
 		else:
-			color_Mana = white if card.mana == cardType.mana else (green if card.mana < cardType.mana else red)
-			(textNode_Mana := self.texts["mana"].node()).setText(str(card.mana) if card.mana > -1 else '')
-			textNode_Mana.setTextColor(transparent if self.isPlayed and not category == "Power" else color_Mana)
+			hideMana = card.mana < 0 or (self.isPlayed and not category == "Power")
+			(textNode_Mana := self.texts["mana"].node()).setText('' if hideMana else str(card.mana))
+			if not hideMana: textNode_Mana.setTextColor(white if card.mana == cardType.mana else (green if card.mana < cardType.mana else red))
 
 			if category in ("Minion", "Weapon", "Hero"):
 				color_Attack = white if card.attack <= card.attack_0 else green
 				color_Health = red if card.health < card.health_max else (green if card.health_max > card.health_0 else white)
 				if "attack" in self.texts:
-					(textNode_Attack := self.texts["attack"].node()).setText(str(card.attack))
-					textNode_Attack.setTextColor(transparent if self.isPlayed else color_Attack)
+					(textNode_Attack := self.texts["attack"].node()).setText(str(card.attack) if not self.isPlayed else '')
+					textNode_Attack.setTextColor(color_Attack)
 				if "attack_Played" in self.texts:
-					s = str(card.attack) if category != "Hero" or card.attack > 0 else ''
+					s = '' if not self.isPlayed or (category == "Hero" and card.attack < 1) else str(card.attack)
 					(textNode_Attack_Played := self.texts["attack_Played"].node()).setText(s)
-					textNode_Attack_Played.setTextColor(color_Attack if self.isPlayed else transparent)
+					textNode_Attack_Played.setTextColor(color_Attack)
 				if "health" in self.texts:
-					(textNode_Health := self.texts["health"].node()).setText(str(card.health))
-					textNode_Health.setTextColor(transparent if self.isPlayed else color_Health)
+					(textNode_Health := self.texts["health"].node()).setText(str(card.health) if not self.isPlayed else '')
+					textNode_Health.setTextColor(color_Health)
 				if "health_Played" in self.texts:
-					(textNode_Health_Played := self.texts["health_Played"].node()).setText(str(card.health))
-					textNode_Health_Played.setTextColor(color_Health if self.isPlayed else transparent)
-			if category == "Hero":
+					(textNode_Health_Played := self.texts["health_Played"].node()).setText(str(card.health) if self.isPlayed else '')
+					textNode_Health_Played.setTextColor(color_Health)
+			if category == "Hero": #Hero没有名为stats_played的model，因为攻击和护甲需要单独显示
 				if self.isPlayed and card.attack > 0: self.models["attack_Played"].show()
 				else: self.models["attack_Played"].hide()
 				if self.isPlayed: self.models["health_Played"].show()
@@ -191,14 +195,14 @@ class Btn_Card:
 				if self.isPlayed and card.armor > 0: self.models["armor_Played"].show()
 				else: self.models["armor_Played"].hide()
 
-				self.texts["armor"].node().setText(str(card.armor))
-				self.texts["armor"].node().setTextColor(transparent if self.isPlayed else white)
-				self.texts["armor_Played"].node().setText(str(card.armor))
-				self.texts["armor_Played"].node().setTextColor(white if card.armor > 0 and self.isPlayed else transparent)
+				self.texts["armor"].node().setText(str(card.armor) if not self.isPlayed else '')
+				self.texts["armor_Played"].node().setText(str(card.armor) if card.armor > 0 and self.isPlayed else '')
 
 		if onlyShowCardBack:
 			for model in self.models.values(): model.hide()
-			for textNodePath in self.texts.values(): textNodePath.node().setTextColor(transparent)
+			if not self.isPlayed:
+				for textNodePath in self.texts.values(): textNodePath.node().setText('')
+			if np_Trade: np_Trade.removeNode()
 			self.models["cardBack"].show()
 
 	def effectChangeAni_Shared(self, name, para):
@@ -300,9 +304,10 @@ class Btn_Card:
 	def statChangeAni(self, num1=0, num2=0, action="set"):
 		card = self.card
 		cardType, category = type(card), card.category
-		#只有是在场上的英雄或手牌中/场上的随从/武器才能够进行
-		if not ((card.category == "Hero" and card.onBoard and self.isPlayed)
-				or (card.category in ("Minion", "Weapon") and (card.inHand or card.onBoard))):
+		#如果卡牌在手中且只显示卡背，则终止；另外若卡牌既不是不是场上的英雄，也不是手牌/场上的随从/武器，则也会终止
+		if (card.inHand and self.onlyCardBackShown) \
+			or not ((card.category == "Hero" and card.onBoard and self.isPlayed)
+					or (card.category in ("Minion", "Weapon") and (card.inHand or card.onBoard))):
 			return
 		#Decide all the values, text colors, npTexts and nodeTexts
 		attack, health = card.attack, card.health
@@ -465,8 +470,8 @@ class Btn_Minion(Btn_Card):
 		GUI, card = self.GUI, self.card
 		UI, game = GUI.UI, GUI.Game
 		if self.isPlayed: #When the minion is on board
-			if UI == 0 or UI == 2:
-				self.GUI.resolveMove(self.card, self, "MiniononBoard")
+			if UI == 0 or UI == 2: self.GUI.resolveMove(self.card, self, "MiniononBoard")
+			elif UI == 3 and card in game.options: GUI.resolveMove(card, None, "DiscoverOption")
 		else: #When the minion is in hand
 			if UI == -1:
 				self.setBoxColor(red if self.selected else green)
@@ -842,6 +847,7 @@ class Btn_Hero(Btn_Card):
 		UI, game = GUI.UI, GUI.Game
 		if self.isPlayed:
 			if UI == 0 or UI == 2: self.GUI.resolveMove(self.card, self, "HeroonBoard")
+			elif UI == 3 and card in game.options: GUI.resolveMove(card, None, "DiscoverOption")
 		else:
 			if UI == -1:
 				self.setBoxColor(red if self.selected else green)
@@ -1098,12 +1104,12 @@ def loadOption(base):
 	root =  loader.loadModel("Models\\Option.glb")
 	root.name = "NP_Option"
 	
-	#Model names: card, cardImage, mana, stats
+	#Model names: card, cardImage, mana, stats, cardBack
+	nodePath = root.find("cardBack")
+	nodePath.setTexture(nodePath.findTextureStage('0'), base.textures["cardBack"], 1)
 	nodePath = root.find("mana")
 	#nodePath.setTransparency(True)
 	nodePath.setTexture(nodePath.findTextureStage('0'), texture, 1)
-	#root.find("cardImage").setTransparency(True)
-	#root.find("cardBack").setTransparency(True)
 	nodePath = root.find("stats")
 	#nodePath.setTransparency(True)
 	nodePath.setTexture(nodePath.findTextureStage('0'), texture, 1)
@@ -1174,7 +1180,10 @@ Table_Type2Btn = {"Minion": Btn_Minion, "Spell": Btn_Spell, "Weapon": Btn_Weapon
 def genCard(GUI, card, isPlayed, pickable=True, pos=None, hpr=None, scale=None,
 			onlyShowCardBack=False, makeNewRegardless=False, isUnknownSecret=False):
 	btn = card.btn
-	if not makeNewRegardless and btn and btn.np:
+	if not makeNewRegardless and btn and (nodepath := btn.np):
+		if pos: nodepath.setPos(pos)
+		if hpr: nodepath.setHpr(hpr)
+		if scale: nodepath.setScale(scale)
 		btn.np.reparentTo(GUI.render)
 		if btn.isPlayed != isPlayed or btn.onlyCardBackShown != onlyShowCardBack:
 			btn.changeCard(card, isPlayed=isPlayed, pickable=pickable, onlyShowCardBack=onlyShowCardBack)

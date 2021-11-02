@@ -172,7 +172,7 @@ class Layer1Window:
 												 deck1=decks[1], deck2=decks[2])
 			self.window.destroy()
 			if not firstTime: self.gameGUI.clearDrawnCards()
-			self.gameGUI.initMulliganDisplay(firstTime)
+			self.gameGUI.initMulliganDisplay(firstTime, for1P=True)
 			"""If the same ShowBase cannot be run multiple times"""
 			if firstTime: self.gameGUI.run()
 		else:
@@ -210,42 +210,8 @@ class GUI_1P(Panda_UICommon):
 		self.loading = "Start!"
 		self.layer1Window.btn_Connect.config(text=txt("Finished Loading. Start!", CHN))
 		self.layer1Window.btn_Connect.config(bg="green3")
-	
-	def initMulliganDisplay(self, firstTime):
-		self.handZones = {1: HandZone(self, 1), 2: HandZone(self, 2)}
-		self.minionZones = {1: MinionZone(self, 1), 2: MinionZone(self, 2)}
-		self.heroZones = {1: HeroZone(self, 1), 2: HeroZone(self, 2)}
-		self.historyZone = HistoryZone(self)
-		if not self.deckZones: self.deckZones = {1: DeckZone(self, 1), 2: DeckZone(self, 2)}
-		
-		self.mulliganStatus = {1: [0, 0, 0], 2: [0, 0, 0, 0]} #需要在每次退出和重新进入时刷新
-		self.UI = -1
-		self.initGameDisplay()
-		
-		self.btns2Remove.append(DirectButton(text=("Confirm", "Confirm", "Confirm", "Confirm"), scale=0.08,
-											pos=(0, 0, 0), command=self.mulligan_PreProcess))
-		
-		#Draw the animation of mulligan cards coming out of the deck
-		self.posMulligans = {1: [(-7, -3.3, 10), (0, -3.3, 10), (7, -3.3, 10)],
-							 2: [(-8.25, 6, 10), (-2.75, 6, 10), (2.75, 6, 10), (8.25, 6, 10)]}
-		for ID in (1, 2):
-			deckZone, handZone, i = self.deckZones[ID], self.handZones[ID], 0
-			pos_0, hpr_0 = deckZone.pos, (90, 90, 0)
-			cards2Mulligan = self.Game.mulligans[ID]
-			mulliganBtns = []
-			for card, pos, hpr, scale in zip(cards2Mulligan, [pos_0] * len(cards2Mulligan), [hpr_0] * len(cards2Mulligan), [1] * len(cards2Mulligan)):
-				mulliganBtns.append(genCard(self, card, isPlayed=False, pos=pos, hpr=hpr, scale=scale)[1])
-			for btn, pos in zip(mulliganBtns, self.posMulligans[ID]):
-				Sequence(Wait(0.4 + i * 0.4), LerpPosHprScaleInterval(btn.np, duration=0.5, pos=pos, hpr=(0, 0, 0), scale=1)).start()
-				i += 1
-		
-		for child in self.render.getChildren():
-			if "2Keep" not in child.name:
-				print("After initGame, Left in render:", child.name, type(child))
-		
-		if firstTime: self.taskMgr.add(self.mainTaskLoop, "Task_MainLoop")
-		
-	def mulligan_PreProcess(self):
+
+	def initMulligan(self):
 		self.UI = 0
 		for btn in self.btns2Remove: btn.destroy()
 		self.btn_BacktoLayer1 = DirectButton(text=("Back", "Back", "Back", "Back"), scale=0.08, pos=(1.55, 0, -0.9),
@@ -255,58 +221,9 @@ class GUI_1P(Panda_UICommon):
 		indices2 = [i for i, status in enumerate(self.mulliganStatus[2]) if status]
 		for i in indices1: self.Game.mulligans[1][i].btn.np.removeNode()
 		for i in indices2: self.Game.mulligans[2][i].btn.np.removeNode()
-		
 		#直到目前为止不用创建需要等待的sequence
 		self.Game.Hand_Deck.mulliganBoth(indices1, indices2)
-		
-	#Returns a sequence to be started later
-	def mulligan_NewCardsfromDeckAni(self, addCoin=True):
-		#At this point, the Coin is added to the Game.mulligans[2]
-		if addCoin: genCard(self, card=self.Game.mulligans[2][-1], isPlayed=False, pos=(13.75, 6, 10))
-		
-		#开始需要生成一个Sequence，然后存储在seqHolder里面
-		para = Parallel()
-		for ID in (1, 2):
-			deckZone, handZone = self.deckZones[ID], self.handZones[ID]
-			pos_DeckZone, hpr_0 = deckZone.pos, (90, 90, 0)
-			indices, cards2Mulligan = [], []
-			for i, card in enumerate(self.Game.mulligans[ID]):
-				if not card.btn:
-					indices.append(i)
-					cards2Mulligan.append(card)
-					
-			mulliganBtns = []
-			for card, pos, hpr, scale in zip(cards2Mulligan, [pos_DeckZone] * len(cards2Mulligan), [hpr_0] * len(cards2Mulligan), [1] * len(cards2Mulligan)):
-				mulliganBtns.append(genCard(self, card, isPlayed=False, pos=pos, hpr=hpr, scale=scale)[1])
-			for btn, i in zip(mulliganBtns, indices):
-				para.append(LerpPosHprScaleInterval(btn.np, duration=0.5, pos=self.posMulligans[ID][i], hpr=(0, 0, 0), scale=1))
-			
-		#已经把所有新从牌库里面出来的牌画在了牌库里面
-		self.seqHolder = [Sequence(para, Wait(1))]
-		self.seqReady = False
-		
-	def mulligan_MoveCards2Hand(self):
-		#此段不涉及动画和nodePath的生成
-		cardsChanged, cardsNew = [], []
-		handZone_1, handZone_2 = self.handZones[1], self.handZones[2]
-		for ID, handZone in zip((1, 2), (handZone_1, handZone_2)):
-			ls_Hands = self.Game.Hand_Deck.hands[ID]
-			for i, card in enumerate(self.Game.mulligans[ID]):
-				newCard = card.entersHand()
-				if newCard is not card:
-					cardsChanged.append(card)
-					cardsNew.append(newCard)
-				ls_Hands.append(newCard)
-			self.Game.mulligans[ID] = []
-		
-		#此时，手牌和牌库中的牌已经决定完毕（包括进入手牌会变形的牌）。需要变形的牌直接在调度区完成变形，然后移到手牌区的位置
-		sequence = self.seqHolder[-1]
-		if cardsChanged: #把btn变形
-			sequence.append(Func(handZone_1.transformHands([card.btn for card in cardsChanged], cardsNew)))
-			sequence.append(Wait(1))
-		handZone_1.placeCards()
-		handZone_2.placeCards()
-		
+
 	def back2Layer1(self):
 		print("Going back to layer1")
 		for btn in self.btns2Remove: btn.destroy()

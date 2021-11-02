@@ -5,16 +5,16 @@ from numpy.random import choice as numpyChoice
 from numpy.random import randint as numpyRandint
 from numpy.random import shuffle as numpyShuffle
 
-def getListinDict(dic, sig):
-	if sig not in dic: dic[sig] = []
-	return dic[sig]
+def getListinDict(dic, key):
+	if key not in dic: dic[key] = []
+	return dic[key]
 
-def add2ListinDict(obj, dic, sig):
-	if sig in dic: dic[sig].append(obj)
-	else: dic[sig] = [obj]
+def add2ListinDict(obj, dic, key):
+	if key in dic: dic[key].append(obj)
+	else: dic[key] = [obj]
 
-def removefromListinDict(obj, dic, sig):
-	if sig in dic and obj in dic[sig]: dic[sig].remove(obj)
+def removefromListinDict(obj, dic, key):
+	if key in dic and obj in dic[key]: dic[key].remove(obj)
 
 def removefrom(obj, ls):
 	if obj in ls: ls.remove(obj)

@@ -418,17 +418,18 @@ class Discover:
 		if self.Game.GUI:
 			self.initiator = initiator
 			discover = self.Game.GUI.waitforDiscover()
-			effectType.discoverDecided(self.initiator, discover, case="Discovered", info_RNGSync=info_RNGSync,
-										   info_GUISync=tuple(info_GUISync+[self.Game.options.index(discover)])
-										   )
+			info_GUISync.append(self.Game.options.index(discover))
+			effectType.discoverDecided(initiator, discover, case="Discovered",
+									   info_RNGSync=info_RNGSync, info_GUISync=info_GUISync)
 			self.initiator, self.Game.options = None, []
 
-	def startSelect(self, initiator, validTargets):
+	#For Hearthstone target selection during effect resolution
+	def startChoose(self, initiator, effectType, ls):
 		if self.Game.GUI:
 			self.initiator = initiator
-			self.Game.GUI.update()
-			self.Game.GUI.waitforSelect(validTargets)
-			self.initiator = None
+			discover = self.Game.GUI.waitforChoose(ls) #The GUI needs to know the legal targets
+			effectType.chooseDecided(self.initiator, discover, case="Discovered", ls=ls)
+			self.initiator, self.Game.options = None, []
 
 	def startFusion(self, initiator, validTargets):
 		if self.Game.GUI:

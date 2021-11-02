@@ -493,7 +493,7 @@ class ClericofScales(Minion):
 		
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		if self.Game.Hand_Deck.holdingDragon(self.ID):
-			self.discoverfromList(ClericofScales, comment, conditional=lambda card: card.category == "Spell")
+			self.discoverfromCardList(ClericofScales, comment, conditional=lambda card: card.category == "Spell")
 		
 	def discoverDecided(self, option, case, info_RNGSync=None, info_GUISync=None):
 		self.handleDiscoveredCardfromList(option, case, ls=self.Game.Hand_Deck.hands[self.ID],

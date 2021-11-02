@@ -221,7 +221,7 @@ class Trig_Secret(TrigBoard):
 				game.GUI.secretTrigAni(secret)
 				game.GUI.heroZones[secret.ID].placeSecrets()
 			for i in (0, 1) if game.effects[secret.ID]["Secrets x2"] > 0 else (0, ):
-				self.keeper.Game.eventinGUI(self.keeper, "%sSecretTrigger"%self.keeper.Class)
+				#self.keeper.Game.eventinGUI(self.keeper, "%sSecretTrigger"%self.keeper.Class)
 				self.effect(signal, ID, subject, target, number, comment)
 			game.sendSignal("SecretRevealed", game.turn, secret, None, 0, "")
 			game.Counters.numSecretsTriggeredThisGame[secret.ID] += 1

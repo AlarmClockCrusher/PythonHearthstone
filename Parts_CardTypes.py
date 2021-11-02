@@ -748,13 +748,16 @@ class Card:
 			if self.category == "Weapon" and self.ID == self.Game.turn: self.Game.heroes[self.ID].calcStat()
 
 	"""Common discover handlers"""
-	#因为所有发现界面的东西才会进行picks的读取，所以即使是跳过人工发现的随机过程也需要上。
+	#因为所有发现界面的东西都会进行picks的读取，所以随机发现和引导下的发现都需要和手动发现一样的。
 	#即使这一个发现可能没有问题，也可能会有连续发现的情况，导致出现问题
 	
 	#默认的discoverDecided是把一张生成的卡牌加入手牌中
+	#info_GUISync可以是list/tuple/整数。但是当手动发现时需要向它里面添加数据，此时必须是列表，所以info_GUISync最终录入picks_Backup的时候需要再次用tuple转换为tuple
+	#手动发现过程后会把一般的info_GUISync补完为[numOption, indexOption]
 	def discoverDecided(self, option, case, info_RNGSync=None, info_GUISync=None):
 		self.handleDiscoverGeneratedCard(option, case, info_RNGSync, info_GUISync)
 	
+	#Most basic Discovers, such as "Discover a spell". Choose 3(max) out of a single pool
 	def discoverandGenerate(self, effectType, comment, poolFunc):
 		game, ID = self.Game, self.ID
 		if self.category == "Minion" and ID != game.turn:
@@ -784,7 +787,8 @@ class Card:
 						game.options = [card(game, ID) for card in options]
 						#info_RNGSync=poolSize, info_GUISync = [numOption] #discover will addto the indexOption to info_GUISync
 						game.Discover.startDiscover(self, effectType=effectType, info_RNGSync=len(pool), info_GUISync=[numOption])
-	
+
+	#Such as "Discover a Hunter secret, Hunter weapon and a weapon". Choose one from each different pool
 	def discoverandGenerate_MultiplePools(self, effectType, comment, poolsFunc):
 		game, ID = self.Game, self.ID
 		if self.category == "Minion" and ID != game.turn:
@@ -810,7 +814,9 @@ class Card:
 						game.options.append(numpyChoice(pool)(game, ID))
 						info_RNGSync.append(len(pool))
 					game.Discover.startDiscover(self, effectType=effectType, info_RNGSync=tuple(info_RNGSync), info_GUISync=[len(pools)])
-	
+
+	#Discover from a list of types, such as "Discover a friendly minion that died this game"
+	#Most numerous type have a higher probability to be in the discover options
 	def discoverandGenerate_Types(self, effectType, comment, typePoolFunc):
 		game, ID = self.Game, self.ID
 		if self.category == "Minion" and ID != game.turn:
@@ -839,7 +845,8 @@ class Card:
 						game.options = [card(game, ID) for card in types]
 						game.Discover.startDiscover(self, effectType=effectType, info_RNGSync=(len(cardTypes), p), info_GUISync=[numOption])
 	
-	#For selections like Totemic Slam. The options are totally predictable
+	#For selections like Totemic Slam. The options are totally determined
+	#options are types. Such as (HealingTotem, SearingTotem, StoneclawTotem, StrengthTotem)
 	def chooseFixedOptions(self, effectType, comment, options):
 		game, ID = self.Game, self.ID
 		if self.category == "Minion" and ID != game.turn:
@@ -855,8 +862,8 @@ class Card:
 				numOption = len(options)
 				if ID != game.turn or "byOthers" in comment:
 					i = datetime.now().microsecond % numOption
-					card = options[i](game, ID)
-					if game.GUI: game.GUI.discoverDecideAni(isRandom=True, numOption=numOption, indexOption=i, options=card)
+					card = options[i]
+					if game.GUI: game.GUI.discoverDecideAni(isRandom=True, indexOption=i, options=card)
 					effectType.discoverDecided(self, card, case="Random", info_RNGSync=None, info_GUISync=(numOption, i))
 				else:
 					game.options = options
@@ -865,13 +872,13 @@ class Card:
 	#case can be "Discovered", "Guided" or "Random"
 	def handleDiscoverGeneratedCard(self, option, case, info_RNGSync, info_GUISync, func=None):
 		cardType, card = type(option), option
-		if case != "Guided": self.Game.picks_Backup.append((info_RNGSync, info_GUISync, case == "Random", cardType))
+		if case != "Guided": self.Game.picks_Backup.append((info_RNGSync, tuple(info_GUISync), case == "Random", cardType))
 		
-		if func: func(cardType, card) #card can be an object or None
+		if func: func(cardType, card)
 		else: self.addCardtoHand(card, self.ID, byDiscover=True)
 
-	#By default, discover any card from your own deck
-	def discoverfromList(self, effectType, comment, conditional=lambda card: True, ls=None):
+	#By default, discover any card from your own deck. ls must a list of card objects
+	def discoverfromCardList(self, effectType, comment, conditional=lambda card: True, ls=None):
 		game, ID = self.Game, self.ID
 		if ls is None: ls = self.Game.Hand_Deck.decks[self.ID]
 		if not ls or (self.category == "Minion" and ID != game.turn): return
@@ -918,14 +925,45 @@ class Card:
 	def handleDiscoveredCardfromList(self, option, case, ls, func, info_RNGSync, info_GUISync):
 		if case == "Random":  #option here the index from ls
 			card, index = ls[option], option
-			self.Game.picks_Backup.append((info_RNGSync, info_GUISync, True, index))
+			self.Game.picks_Backup.append((info_RNGSync, tuple(info_GUISync), True, index))
 		elif case == "Guided": #option here is index from ls
 			card, index = ls[option], option
 		else: #case == "Discovered" #option here is a real card selected
 			card, index = option, ls.index(option)
-			self.Game.picks_Backup.append((info_RNGSync, info_GUISync, False, index) )
+			self.Game.picks_Backup.append((info_RNGSync, tuple(info_GUISync), False, index) )
 		func(index, card)
-		
+
+	#Choose a target that is onBoard/inHand during effect resolution. Now only applicable to GoliathSneedsMasterpiece
+	#ls会在调用函数时直接选好
+	#因为没有随机生成选项
+	def choosefromBoard(self, effectType, comment, ls): #ls可以根据index找到选择的目标
+		game, ID = self.Game, self.ID
+		if not ls or (self.category == "Minion" and ID != game.turn):
+			return
+		if game.mode == 0:
+			if game.picks: #在场上的选择是没有随机产生的。info_RNGSync总是None
+				isRandom, indexPicked = game.picks.pop(0)
+				option = ls[indexPicked]
+				if game.GUI: game.GUI.chooseDecideAni(isRandom=isRandom, indexOption=indexPicked, options=ls)
+				effectType.chooseDecided(self, option, case="Guided", ls=ls)
+			else:
+				if (numOption := len(ls))== 1 or ID != game.turn or "byOthers" in comment:  # 如果只有一个选项则跳过手动发现过程
+					i = datetime.now().microsecond % numOption
+					if game.GUI: game.GUI.chooseDecideAni(isRandom=True, indexOption=i, options=ls)
+					effectType.chooseDecided(self, ls[i], case="Random", ls=ls)
+				else:
+					game.options = ls
+					game.Discover.startChoose(self, effectType=effectType, ls=ls)
+
+	def chooseDecided(self, option, case, ls):
+		self.handleChooseDecision(option, case, ls)
+
+	def handleChooseDecision(self, option, case, ls, func=None):
+		cardType, card = type(option), option
+		if case != "Guided": self.Game.picks_Backup.append((case=="Random", ls.index(option)))
+
+		if func: func(cardType, card)
+
 	"""Common card generation handlers"""
 	def addCardtoHand(self, card, ID, byDiscover=False, pos=-1, ani="fromCenter"):
 		self.Game.Hand_Deck.addCardtoHand(card, ID, byDiscover=byDiscover, pos=pos,
@@ -1103,13 +1141,12 @@ class Dormant(Card):
 	def appears(self, firstTime=True):
 		self.onBoard = True
 		self.enterBoardTurn = self.Game.numTurn
-		# 目前没有Dormant有光环
+		for aura in self.auras: aura.auraAppears() # 目前没有Dormant有光环
+		for trig in self.trigsBoard: trig.connect()
 		if self.btn:
 			self.btn.isPlayed, self.btn.card = True, self
 			self.btn.placeIcons()
-		for aura in self.auras: aura.auraAppears()
-		for trig in self.trigsBoard: trig.connect()
-		
+
 	# Dormant本身是没有死亡扳机的，所以这个deathrattlesStayArmed无论真假都无影响
 	def disappears(self, deathrattlesStayArmed=False, disappearResponse=True):
 		self.onBoard = False
@@ -1184,15 +1221,15 @@ class Minion(Card):
 		self.inHand = self.inDeck = self.dead = False
 		self.enterBoardTurn = self.Game.numTurn
 		self.mana = type(self).mana  # Restore the minion's mana to original value.
+		for aura in self.auras: aura.auraAppears()
+		for trig in self.trigsBoard + self.deathrattles: trig.connect()
 		self.decideAttChances_base()  # Decide base att chances, given Windfury and Mega Windfury
 		if self.btn:
 			self.btn.isPlayed, self.btn.card = True, self
 			self.btn.placeIcons()
 			self.btn.effectChangeAni()
-		# The buffAuras/hasAuras will react to this signal.
+		# auras will react to this signal.
 		self.Game.sendSignal("MinionAppears", self.ID, self, None, 0, comment=firstTime)
-		for aura in self.auras: aura.auraAppears()
-		for trig in self.trigsBoard + self.deathrattles: trig.connect()
 		self.calcStat()
 
 	def disappears(self, deathrattlesStayArmed=False, disappearResponse=True):  # The minion is about to leave board.
@@ -1383,14 +1420,9 @@ class Minion(Card):
 		# 如果场上有随从可供战吼选择，但是因为免疫和潜行导致打出随从时没有目标，则不会触发随机选择，因为本来就没有目标。
 		# 在战吼开始检测之前，如果铜须已经死亡，则其并不会让战吼触发两次。也就是扳机的机制。
 		# 同理，如果此时市长已经死亡，则其让选择随机化的扳机也已经离场，所以不会触发随机目标。
-		if target and not isinstance(target, list):
-			holder = [target]
-			game.sendSignal("BattlecryTargetDecision", self.ID, self, holder, 0, "", choice)
-			target = holder[0]
-			if GUI: GUI.resetSubTarColor(None, target)
-		# 市长不会让发现和抉择选项的选择随机化。
-		# 不管target是否还在场上，此时只要市长还在，就要重新在场上寻找合法目标。如果找不到，就不能触发战吼的指向性部分，以及其产生的后续操作。
-		# 随机条件下，如果所有合法目标均已经消失，则return None. 由随从的战吼决定是否继续生效。
+
+		# 市长只影响初始目标的选择，玩家的其他选择，如发现和抉择都不会受影响
+		target = game.try_RedirectEffectTarget("EffectTarget?", self, target, choice)
 
 		# 在随从战吼/连击开始触发前，检测是否有战吼/连击翻倍的情况。如果有且战吼可以进行，则强行执行战吼至两次循环结束。无论那个随从是死亡，在手牌中还是牌库
 		num, effects = 1, game.effects[self.ID]
@@ -1740,12 +1772,7 @@ class Weapon(Card):
 		# 之后在结算阶段的武器正式替换阶段，打出的该武器顶掉灰烬使者。最终装备的武器依然是打出的这把武器。
 		game.gathertheDead()  # 此时被替换的武器先不视为死亡，除非被亡语引起的死亡结算先行替换（如佛丁）。
 		# 结算阶段
-		# 根据市长的存在情况来决定随机目标。
-		if target:
-			holder = [target]
-			game.sendSignal("BattlecryTargetDecision", self.ID, self, holder, 0, "", choice=0)
-			target = holder[0]
-			if game.GUI: game.GUI.resetSubTarColor(None, target)
+		target = game.try_RedirectEffectTarget("EffectTarget?", self, target, choice)
 		# 根据铜须的存在情况来决定战吼的触发次数。不同于随从，武器的连击目前不会触发
 		if game.effects[self.ID]["Battlecry x2"] > 0:
 			target = self.whenEffective(target, "", choice, posinHand)
@@ -1827,15 +1854,14 @@ class Power(Card):
 	def available(self):  # 只考虑没有抉择的技能，抉择技能需要自己定义
 		return not self.chancesUsedUp() and (not self.needTarget() or self.findTargets())
 
+
 	def use(self, target=None, choice=0, sendthruServer=True):
 		game = self.Game
-		if not (game.Manas.affordable(self) and self.available() and self.selectionLegit(target, choice)):
+		if not game.check_UsePower(self, target, choice):
 			return False
 		print("Using hero power", self.name)
 		# 支付费用，清除费用状态。
-		subIndex, subWhere = self.ID, "Power"
-		if target: tarIndex, tarWhere = target.pos, target.category + str(target.ID)
-		else: tarIndex, tarWhere = 0, ''
+		subLocator, tarLocator = game.genLocator(self), game.genLocator(target)
 		# 准备游戏操作的动画
 		GUI = game.GUI
 		game.prepGUI4Ani(GUI)
@@ -1843,11 +1869,8 @@ class Power(Card):
 			GUI.showOffBoardTrig(self)
 			game.eventinGUI(self, eventType="UsePower", target=target, level=0)
 		game.Manas.payManaCost(self, self.mana)
-		# 如果有指向，则触发指向扳机（目前只有市长）
-		holder = [target]
-		game.sendSignal("HeroPowerTargetDecision", self.ID, self, holder, 0, "", choice)
-		target = holder[0]
-		if GUI: GUI.resetSubTarColor(None, target)
+
+		target = game.try_RedirectEffectTarget("EffectTarget?", self, target, choice)
 		minionsKilled = 0
 		if target and target.category == "Minion" and game.effects[self.ID]["Power Sweep"] > 0:
 			targets = game.neighbors2(target)[0]
@@ -1869,7 +1892,7 @@ class Power(Card):
 		# 激励阶段结束，处理死亡。此时可以进行胜负判定。
 		game.gathertheDead(True)
 		if GUI: GUI.decideCardColors()
-		game.moves.append(("Power", subIndex, subWhere, tarIndex, tarWhere, choice))
+		game.moves.append(("Power", subLocator, tarLocator, choice))
 		self.Game.wrapUpPlay(GUI, sendthruServer)
 		return True
 
@@ -1954,13 +1977,9 @@ class Spell(Card):
 		game.sendSignal("Spellboost", ID, self, None, mana, "", choice)
 		# 使用阶段结束，进行死亡结算。不处理胜负裁定。
 		game.gathertheDead()  # At this point, the minion might be removed/controlled by Illidan/Juggler combo.
-		# 进行目标的随机选择和扰咒术的目标改向判定。
-		if target:
-			holder = [target]
-			game.sendSignal("SpellTargetDecision", ID, self, holder, 0, choice)
-			target = holder[0]
-			if GUI: GUI.resetSubTarColor(None, target)
 
+		# 进行目标的随机选择和扰咒术的目标改向判定。
+		target = game.try_RedirectEffectTarget("EffectTarget?", self, target, choice)
 		if target and target.ID == ID:
 			game.Counters.spellsonFriendliesThisGame[ID].append(type(self))
 			if target.category == "Minion": game.Counters.spellsonFriendlyMinionsThisGame[ID].append(type(self))

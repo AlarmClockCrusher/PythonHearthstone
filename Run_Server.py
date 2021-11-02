@@ -15,7 +15,7 @@ So the bitwise or operation '|' and bitwise operation '&'
 
 				
 class Table(tk.Frame):
-	def __init__(self, innKeeper):
+	def __init__(self, innKeeper, seeEachOthersHands):
 		super().__init__(master=innKeeper.panel_Tables)
 		self.innKeeper = innKeeper
 		self.socks2Players = {1: None, 2: None}
@@ -30,6 +30,7 @@ class Table(tk.Frame):
 		#self.curTurn = 1
 		self.seed = datetime.now().microsecond
 		self.keepRunning = True
+		self.seeEachOthersHands = seeEachOthersHands
 		self.infoSegmentHeader = b""
 		
 		"""Put the hero image and address info in the frame"""
@@ -68,7 +69,8 @@ class Table(tk.Frame):
 		print("Table {} port {} has established conn to player port {}".format(self, ID, addr))
 		self.conns2Players[ID] = conn
 		#Send the connected player the player ID and RNG seed
-		conn.sendall(b"PlayerID BoardID Seed||%d||%s||%d" % (ID, self.boardID.encode(), self.seed))
+		conn.sendall(b"PlayerID BoardID Seed SeeEachOthersHand||%d||%s||%d||%d" %
+					 (ID, self.boardID.encode(), self.seed, int(self.seeEachOthersHands)) )
 		
 		while self.keepRunning:
 			try:
@@ -87,7 +89,7 @@ class Table(tk.Frame):
 						send_PossiblePadding(self, self.conns2Players[1], b"Enemy Hero Picked||"+self.heroes[2])
 						send_PossiblePadding(self, self.conns2Players[2], b"Enemy Hero Picked||"+self.heroes[1])
 				#一个玩家自己的换牌结束，向这里递交自己的手牌和牌库情况
-				elif totalData.startswith(b"Exchange Deck&Hand"):
+				elif totalData.startswith(b"Exchange Mulligan&Deck"):
 					header, self.handsDecks[ID] = totalData.split(b"||")
 					if self.handsDecks[1] and self.handsDecks[2]:
 						print("Both finished mulligan. Tell each player the opponent hand deck")
@@ -187,9 +189,9 @@ class InnKeeper:
 			tableID_Requested = conn.recv(1024) #Any byte string
 			if tableID_Requested.startswith(b"Request to Reserver/Join Table ID"):
 				print("Received table ID from guest", tableID_Requested)
-				tableID_Requested = tableID_Requested.split(b',')[1]
-				print("Guest wants tableID:", tableID_Requested)
-				if tableID_Requested in self.tables:
+				header, tableID_Requested, seeEachOthersHands = tableID_Requested.split(b'___')
+				print("Guest wants tableID:", tableID_Requested, seeEachOthersHands)
+				if tableID_Requested in self.tables: #Join a reserved table
 					table = self.tables[tableID_Requested]
 					conns2Players = table.conns2Players
 					if conns2Players[1] and conns2Players[2]: #If the table has two connections, that means two players playing at that table
@@ -202,7 +204,7 @@ class InnKeeper:
 						conn.sendall(b"Join Reserved Table via Port||%d"%port)
 				#No one has reserved this table yet. Assign sockets to a table
 				else:#The table ID reserved is available.
-					self.tables[tableID_Requested] = table = Table(self)
+					self.tables[tableID_Requested] = table = Table(self, seeEachOthersHands)
 					self.tablesShown.append(table)
 					self.placeTables()
 					#Assign two sockets for the table

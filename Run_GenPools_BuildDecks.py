@@ -13,7 +13,7 @@ def canBeGenerated(cardType, SV=0):
 
 
 translateTable = {"Loading. Please wait": "正在加载模型，请等待",
-				 	"Hero 1 class": "选择玩家1的职业",
+					"Hero 1 class": "选择玩家1的职业",
 				 	"Hero 2 class": "选择玩家2的职业",
 				 	"Enter Deck 1 code": "输入玩家1套牌代码",
 				 	"Enter Deck 2 code": "输入玩家2的套牌代码",
@@ -21,15 +21,16 @@ translateTable = {"Loading. Please wait": "正在加载模型，请等待",
 				 	"Deck 2 incorrect": "玩家2的套牌代码有误",
 				 	"Deck 1&2 incorrect": "玩家1与玩家2的套牌代码均有误",
 				 	"Finished Loading. Start!": "加载完成，可以开始",
+					"Hands revealed to each other": "双方手牌互相可见",
 					"Go Back to Layer 1": "返回游戏初始UI",
-				 
+
 					"Server IP Address": "服务器IP地址",
 					"Query Port": "接入端口",
 					"Table ID to join": "想要加入的牌桌ID",
 					"Hero class": "选择你的职业",
 					"Enter Deck code": "输入你的套牌代码",
 					"Resume interrupted game": "返回中断的游戏",
-	
+
 					"Deck incorrect": "你的套牌代码不正确，请检查后重试",
 					"Can't ping the address ": "无法ping通给出的服务器IP地址",
 					"Can't connect to the server's query port": "无法连接到给出的服务器接入端口",

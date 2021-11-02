@@ -1981,7 +1981,7 @@ class MadameLazul(Minion):
 	name_CN = "拉祖尔女士"
 	#暂时假定无视手牌中的牌的名字相同的规则，发现中可以出现名字相同的牌
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		self.discoverfromList(MadameLazul, comment, ls=self.Game.Hand_Deck.hands[3-self.ID])
+		self.discoverfromCardList(MadameLazul, comment, ls=self.Game.Hand_Deck.hands[3 - self.ID])
 		
 	def discoverDecided(self, option, case, info_RNGSync=None, info_GUISync=None):
 		self.handleDiscoveredCardfromList(option, case, ls=self.Game.Hand_Deck.hands[3-self.ID],

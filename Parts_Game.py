@@ -159,17 +159,10 @@ class Game:
 		# 使用后步骤：使用后扳机：如镜像实体，狙击，顽石元素。低语元素的状态移除结算和dk的技能刷新等。
 		###结算死亡，此时因为序列结束可以处理胜负问题。
 		# 在打出序列的开始阶段决定是否要产生一个回响copy
-		subIndex, subWhere = self.Hand_Deck.hands[amulet.ID].index(amulet), "Hand%d" % amulet.ID
+		subLocator = self.genLocator(amulet)
 		if target: #因为护符是SV特有的卡牌类型，所以其目标选择一定是列表填充式的
-			tarIndex, tarWhere = [], []
-			for obj in target:
-				if obj.onBoard:
-					tarIndex.append(obj.pos)
-					tarWhere.append(obj.category+str(obj.ID))
-				else:
-					tarIndex.append(self.Hand_Deck.hands[obj.ID].index(obj))
-					tarWhere.append("Hand%d"%obj.ID)
-		else: tarIndex, tarWhere = 0, ''
+			tarLocator = [self.genLocator(obj) for obj in target]
+		else: tarLocator = 0
 		#准备游戏操作的动画
 		GUI = self.GUI
 		self.prepGUI4Ani(GUI)
@@ -205,10 +198,8 @@ class Game:
 							armedTrigs)
 		# ............完成阶段结束，开始处理死亡情况，此时可以处理胜负问题。
 		self.gathertheDead(True)
-		if not isinstance(tarIndex, list):
-			self.moves.append(("playAmulet", subIndex, subWhere, tarIndex, tarWhere, position, choice))
-		else:
-			self.moves.append(("playAmulet", subIndex, subWhere, tuple(tarIndex), tuple(tarWhere), position, choice))
+		if isinstance(tarLocator, list): self.moves.append(("playAmulet", subLocator, tuple(tarLocator), position, choice))
+		else: self.moves.append(("playAmulet", subLocator, tarLocator, position, choice))
 		self.wrapUpPlay(GUI, sendthruServer)
 		return True
 	
@@ -245,20 +236,11 @@ class Game:
 					#使用后步骤：使用后扳机：如镜像实体，狙击，顽石元素。低语元素的状态移除结算和dk的技能刷新等。
 					###结算死亡，此时因为序列结束可以处理胜负问题。
 
-		subIndex, subWhere = self.Hand_Deck.hands[minion.ID].index(minion), "Hand%d"%minion.ID
+		subLocator = self.genLocator(minion)
 		if target:
-			if isinstance(target, list):
-				tarIndex, tarWhere = [], []
-				for obj in target:
-					if obj.onBoard:
-						tarIndex.append(obj.pos)
-						tarWhere.append(obj.category+str(obj.ID))
-					else:
-						tarIndex.append(self.Hand_Deck.hands[obj.ID].index(obj))
-						tarWhere.append("Hand%d"%obj.ID)
-			else: #非列表状态的target一定是炉石卡指定的
-				tarIndex, tarWhere = target.pos, target.category+str(target.ID)
-		else: tarIndex, tarWhere = 0, ''
+			if isinstance(target, list): tarLocator = [self.genLocator(obj) for obj in target]
+			else: tarLocator = self.genLocator(target) #非列表状态的target一定是炉石卡指定的
+		else: tarLocator = 0
 		#开始准备游戏操作对应的动画
 		GUI = self.GUI
 		self.prepGUI4Ani(GUI)
@@ -280,6 +262,7 @@ class Game:
 			else:
 				if origSpell != spellHolder[0]: spellHolder[0].cast()
 				else:
+					if GUI: GUI.resetSubTarColor(None, target)
 					armedTrigs = self.armedTrigs("SpellBeenPlayed")
 					self.Counters.cardsPlayedEachTurn[self.turn][-1].append(type(spell))
 					self.Counters.manas4CardsEachTurn[self.turn][-1].append(mana)
@@ -298,10 +281,9 @@ class Game:
 						self.sendSignal("AccelerateBeenPlayed", self.turn, spell, target, mana, posinHand, choice, armedTrigs)
 					#完成阶段结束，处理亡语，此时可以处理胜负问题。
 				self.gathertheDead(True) #即使随从以法术打出，并被古神在上变成随机施放的法术，也要进行死亡的判定
-				if not isinstance(tarIndex, list):
-					self.moves.append(("playSpell", subIndex, subWhere, tarIndex, tarWhere, choice))
-				else:
-					self.moves.append(("playSpell", subIndex, subWhere, tuple(tarIndex), tuple(tarWhere), choice))
+				if not isinstance(tarLocator, list):
+					self.moves.append(("playSpell", subLocator, tarLocator, choice))
+				else: self.moves.append(("playSpell", subLocator, tuple(tarLocator), choice))
 				self.Counters.shadows[spell.ID] += 1
 		else: #Normal or Enhance X or Crystallize X minion played
 			typewhenPlayed = minion.category
@@ -331,8 +313,8 @@ class Game:
 				self.sendSignal("%sBeenPlayed"%typewhenPlayed, self.turn, self.minionPlayed, target, mana, posinHand, choice, armedTrigs)
 		#............完成阶段结束，开始处理死亡情况，此时可以处理胜负问题。
 		self.gathertheDead(True)
-		if not isinstance(tarIndex, list): self.moves.append(("playMinion", subIndex, subWhere, tarIndex, tarWhere, position, choice))
-		else: self.moves.append(("playMinion", subIndex, subWhere, tuple(tarIndex), tuple(tarWhere), position, choice))
+		if isinstance(tarLocator, list): self.moves.append(("playMinion", subLocator, tuple(tarLocator), position, choice))
+		else: self.moves.append(("playMinion", subLocator, tarLocator, position, choice))
 		self.wrapUpPlay(GUI, sendthruServer)
 		return True
 
@@ -716,11 +698,24 @@ class Game:
 	#Process the damage transfer. If no transfer happens, the original target is returned
 	def scapegoat4(self, target, subject=None):
 		holder = [target]
+		#Each damage trigger only triggers once during a single resolution
 		while self.sendSignal("DmgTaker?", 0, subject, holder, 0, ""):
 			pass
 		dmgTaker = holder[0]
-		self.sendSignal("DmgTaker?", 0, None, None, 0, "Reset")
+		self.sendSignal("DmgTaker?", 0, None, None, 0, "Reset") #Reset all damage modification trigger.
 		return dmgTaker
+
+	# 不管target是否还在场上，此时只要市长还在，就要重新在场上寻找合法目标。
+	# 如果找不到，就return None，不能触发战吼的指向性部分，以及其产生的后续操作
+	def try_RedirectEffectTarget(self, signal, subject, target, choice):
+		if target:
+			if self.GUI: self.GUI.resetSubTarColor(subject, target)
+			if not isinstance(target, list):
+				holder = [target]
+				self.sendSignal(signal, subject.ID, self, holder, 0, "", choice)
+				target = holder[0]
+			if self.GUI: self.GUI.resetSubTarColor(None, target)
+		return target
 
 	def heroTakesDamage(self, ID, dmg):
 		self.scapegoat4(self.heroes[ID]).takesDamage(None, dmg, damageType="Ability")
@@ -735,19 +730,17 @@ class Game:
 			#Register the weapons to destroy.(There might be multiple weapons in queue,
 			#since you can trigger Tirion Fordring's deathrattle twice and equip two weapons in a row.)
 			#Pop all the weapons until no weapon or the latest weapon equipped.
-			while self.weapons[ID]:
-				if self.weapons[ID][0].health < 1 or self.weapons[ID][0].dead:
-					weapon = self.weapons[ID].pop(0)
+			for weapon in self.weapons[ID]:
+				if weapon.health < 1 or weapon.dead:
 					weapon.dead = True
 					weapon.disappears(deathrattlesStayArmed=True)
-					self.Counters.weaponsDestroyedThisGame[weapon.ID].append(type(weapon))
+					self.Counters.weaponsDestroyedThisGame[ID].append(type(weapon))
 					self.tempDeads[0].append(weapon)
 					self.tempDeads[1].append(weapon.attack)
 				else: #If the weapon is the latest weapon to equip
 					break
 			for minion in self.minionsonBoard(ID) + self.amuletsonBoard(ID):
-				if minion.dead and minion.effects["Can't Break"] > 0:
-					minion.dead = False
+				if minion.effects["Can't Break"] > 0: minion.dead = False
 				if minion.category == "Minion":
 					if minion.health < 1 or minion.dead:
 						if minion.effects["Disappear When Die"] > 0:
@@ -762,8 +755,7 @@ class Game:
 						if "Artifact" in minion.race:
 							if minion.index in self.Counters.artifactsDiedThisGame[minion.ID]:
 								self.Counters.artifactsDiedThisGame[minion.ID][minion.index] += 1
-							else:
-								self.Counters.artifactsDiedThisGame[minion.ID][minion.index] = 1
+							else: self.Counters.artifactsDiedThisGame[minion.ID][minion.index] = 1
 						self.Counters.shadows[minion.ID] += 1
 				elif minion.dead: #The obj is Amulet and it's been marked dead
 					minion.dead = True
@@ -777,7 +769,7 @@ class Game:
 			if self.heroes[ID].health < 1: self.heroes[ID].dead = True
 
 		if self.tempDeads[0]: #self.tempDeads != [[], []]
-			#Rearrange the dead minions according to their sequences.
+			#Rearrange the dead minions and their attacks according to their sequences.
 			self.tempDeads[0], order = self.objs_SeqSorted(self.tempDeads[0])
 			temp = self.tempDeads[1]
 			self.tempDeads[1] = []
@@ -961,10 +953,9 @@ class Game:
 			dy = 0.5 * (1 if GUI.heroZones[subject.ID].heroPos[1] < 0 else -1)
 			GUI.offsetNodePath_Wait(subject.btn.np, duration=0.15, dy=dy, dz=5)
 			GUI.seqHolder[-1].append(GUI.WAIT(0.3))
-		subIndex = subWhere = tarIndex = tarWhere = 0
-		if verifySelectable:
-			subIndex, subWhere = subject.pos, subject.category+str(subject.ID)
-			tarIndex, tarWhere = target.pos, target.category+str(target.ID)
+
+		subLocator = tarLocator = 0
+		if verifySelectable: subLocator, tarLocator = self.genLocator(subject), self.genLocator(target)
 		#如果英雄的武器为蜡烛弓和角斗士的长弓，则优先给予攻击英雄免疫，防止一切攻击前步骤带来的伤害。
 		self.sendSignal("BattleStarted", self.turn, subject, target, 0, "") #这里的target没有什么意义，可以留为target
 		#在此，奥秘和健忘扳机会在此触发。需要记住初始的目标，然后可能会有诸多扳机可以对此初始信号响应。
@@ -1014,13 +1005,16 @@ class Game:
 		if resolveDeath:
 			self.gathertheDead(True)
 		if verifySelectable: #只有需要验证攻击目标的攻击都是玩家的游戏操作
-			self.moves.append(("battle", subIndex, subWhere, tarIndex, tarWhere))
+			self.moves.append(("battle", subLocator, tarLocator))
 			self.wrapUpPlay(GUI, sendthruServer)
 		return True
 	
 	def check_playSpell(self, spell, target, choice):
 		return self.Manas.affordable(spell) and spell.available() and spell.selectionLegit(target, choice)
-	
+
+	def check_UsePower(self, power, target, choice):
+		return self.Manas.affordable(power) and power.available() and power.selectionLegit(target, choice)
+
 	#comment = "InvokedbyAI", "Branching-i", ""(GUI by default)
 	def playSpell(self, spell, target, choice=0, comment="", sendthruServer=True):
 		#古加尔的费用光环需要玩家的血量加护甲大于法术的当前费用或者免疫状态下才能使用
@@ -1043,20 +1037,11 @@ class Game:
 			#符文之矛和导演释放的法术也会使用风潮或者星界密使的效果。
 			#西风灯神和沃拉斯的效果仅是获得过载和双生法术 ->结算法术牌面
 			
-		subIndex, subWhere = self.Hand_Deck.hands[spell.ID].index(spell), "Hand%d"%spell.ID
+		subLocator = self.genLocator(spell)
 		if target:
-			if isinstance(target, list):
-				tarIndex, tarWhere = [], []
-				for obj in target:
-					if obj.onBoard:
-						tarIndex.append(obj.pos)
-						tarWhere.append(obj.category+str(obj.ID))
-					else:
-						tarIndex.append(self.Hand_Deck.hands[obj.ID].index(obj))
-						tarWhere.append("Hand%d"%obj.ID)
-			else: #非列表状态的target一定是炉石卡指定的
-				tarIndex, tarWhere = target.pos, target.category+str(target.ID)
-		else: tarIndex, tarWhere = 0, ''
+			if isinstance(target, list): tarLocator = [self.genLocator(obj) for obj in target]
+			else: tarLocator = self.genLocator(target) #非列表状态的target一定是炉石卡指定的
+		else: tarLocator = 0
 		GUI = self.GUI
 		self.prepGUI4Ani(GUI)
 		#支付法力值，结算血色绽放等状态。
@@ -1080,6 +1065,7 @@ class Game:
 		else:
 			if origSpell != spellHolder[0]: spellHolder[0].cast()
 			else:
+				if GUI: GUI.resetSubTarColor(None, target)
 				armedTrigs = self.armedTrigs("SpellBeenPlayed")
 				self.Counters.cardsPlayedEachTurn[self.turn][-1].append(type(spell))
 				self.Counters.manas4CardsEachTurn[self.turn][-1].append(mana)
@@ -1093,10 +1079,8 @@ class Game:
 				self.sendSignal("SpellBeenPlayed", self.turn, spell, target, mana, posinHand, choice, armedTrigs)
 				#完成阶段结束，处理亡语，此时可以处理胜负问题。
 			self.gathertheDead(True) #即使法术可以被古神在上变为随机施放的法术，也要进行死亡判定
-			if not isinstance(tarIndex, list):
-				self.moves.append(("playSpell", subIndex, subWhere, tarIndex, tarWhere, choice))
-			else:
-				self.moves.append(("playSpell", subIndex, subWhere, tuple(tarIndex), tuple(tarWhere), choice))
+			if isinstance(tarLocator, list): self.moves.append(("playSpell", subLocator, tuple(tarLocator), choice))
+			else: self.moves.append(("playSpell", subLocator, tarLocator, choice))
 			self.Counters.shadows[spell.ID] += 1
 		self.wrapUpPlay(GUI, sendthruServer)
 		return True
@@ -1126,10 +1110,7 @@ class Game:
 		#完成阶段
 			#使用后步骤，触发“每当你使用一张xx牌”之后的扳机。如捕鼠陷阱和瑟拉金之种等
 			#死亡结算，可以处理胜负问题。
-		subIndex, subWhere = self.Hand_Deck.hands[weapon.ID].index(weapon), "Hand%d"%weapon.ID
-		if target:
-			tarIndex, tarWhere = target.pos, target.category+str(target.ID)
-		else: tarIndex, tarWhere = 0, ''
+		subLocator, tarLocator = self.genLocator(weapon), self.genLocator(target)
 		GUI = self.GUI
 		self.prepGUI4Ani(GUI)
 		#卡牌从手中离开，支付费用，费用状态移除，但是目前没有根据武器费用支付而产生响应的效果。
@@ -1154,7 +1135,7 @@ class Game:
 		self.sendSignal("WeaponBeenPlayed", self.turn, weapon, target, mana, posinHand, 0, armedTrigs)
 		#完成阶段结束，处理亡语，可以处理胜负问题。
 		self.gathertheDead(True)
-		self.moves.append(("playWeapon", subIndex, subWhere, tarIndex, tarWhere, 0))
+		self.moves.append(("playWeapon", subLocator, tarLocator, 0))
 		self.wrapUpPlay(GUI, sendthruServer)
 		return True
 	
@@ -1190,7 +1171,7 @@ class Game:
 		#完成阶段
 			#使用后步骤，触发“每当你使用一张xx牌之后”的扳机。如捕鼠陷阱和瑟拉金之种等
 			#完成阶段结束，处理死亡，可以处理胜负问题。
-		subIndex, subWhere = self.Hand_Deck.hands[heroCard.ID].index(heroCard), "Hand%d"%heroCard.ID
+		subLocator = self.genLocator(heroCard)
 		#准备游戏操作的动画
 		GUI = self.GUI
 		self.prepGUI4Ani(GUI)
@@ -1212,13 +1193,13 @@ class Game:
 		self.sendSignal("HeroCardBeenPlayed", self.turn, heroCard, None, mana, posinHand, choice, armedTrigs)
 		#完成阶段结束，处理亡语，可以处理胜负问题。
 		self.gathertheDead(True)
-		self.moves.append(("playHero", subIndex, subWhere, 0, "", choice))
+		self.moves.append(("playHero", subLocator, 0, choice))
 		self.wrapUpPlay(GUI, sendthruServer)
 		return True
 	
 	def playCard_4Trade(self, subject, sendthruServer=True):
 		HD, ID = self.Hand_Deck, subject.ID
-		subIndex, subWhere = HD.hands[ID].index(subject), "Hand%d"%ID
+		subLocator = self.genLocator(subject)
 		GUI = self.GUI
 		self.prepGUI4Ani(GUI)
 		#先把手牌中的这些牌移出
@@ -1230,12 +1211,12 @@ class Game:
 											  self.Manas.manasLocked[ID], self.Manas.manasOverloaded[ID]))
 			GUI.cardsLeaveHandAni([subject], ID, linger=True)
 		if self.effects[ID]["Trade Discovers Instead"] > 0:
-			AuctioneerJaxon(self, ID).discoverfromList(AuctioneerJaxon, '')
+			AuctioneerJaxon(self, ID).discoverfromCardList(AuctioneerJaxon, '')
 		else: HD.drawCard(ID)
 		HD.shuffleintoDeck(subject, initiatorID=ID, enemyCanSee=False)
 		self.eventinGUI(subject, eventType="Trade", level=0)
 		if hasattr(subject, "tradeEffect"): subject.tradeEffect()
-		self.moves.append(("playCard_4Trade", subIndex, subWhere, 0, ""))
+		self.moves.append(("playCard_4Trade", subLocator))
 		self.wrapUpPlay(GUI, sendthruServer)
 		return True
 	
@@ -1302,19 +1283,34 @@ class Game:
 		#print("Total time for copying %d games"%num, datetime.timestamp(finish)-datetime.timestamp(start))
 		return copies
 
-	def find(self, i, where):
-		return {"Minion1": self.minions[1],
-				"Minion2": self.minions[2],
-				"Amulet1": self.minions[1],
-				"Amulet2": self.minions[2],
-				"Hero1": self.heroes, #For heroes, their position is kept the same as their ID
-				"Hero2": self.heroes,
-				"Power": self.powers,
-				"Hand1": self.Hand_Deck.hands[1],
-				"Hand2": self.Hand_Deck.hands[2],
-				"Deck1": self.Hand_Deck.decks[1],
-				"Deck2": self.Hand_Deck.decks[2],
-				}[where][i]
+	def genLocator(self, card=None):
+		if not card: return 0
+		ID = card.ID
+		if card.onBoard:
+			if card.category in ("Minion", "Dormant", "Amulet"): #X0Y: The Xth in minions[Y]
+				return card.pos * 100 + ID
+			elif card.category == "Hero": #001Y: Hero Y
+				return 10 + ID
+			else: return 20 + ID #002Y: Power of player Y
+		elif card.inHand: #X3Y: The Xth in self.Game.Hand_Deck.hands[Y]
+			return self.Hand_Deck.hands[ID].index(card) * 100 + 30 + ID
+		elif card.inDeck:
+			return self.Hand_Deck.decks[ID].index(card) * 100 + 40 + ID
+		else: raise
+
+	#Find the card in the game using integert locator
+	#Board: 0, Hero: 1, Power:2, Hand:3, Deck:4
+	#2241: ID=1, Deck, index=22 --->self.Game.Hand_Deck.decks[1][22]
+	#0002: ID=2, Board, index=0 -->self.Game.minions[2][0]
+	def locate(self, locator): #ID last digit, zone 2nd last digit
+		if not locator: return None
+		ID, zone, i = locator % 10, int(locator % 100 / 10), int(locator / 100)
+		if zone == 0: return self.minions[ID][i]
+		elif zone == 1: return self.heroes[ID]
+		elif zone == 2: return self.powers[ID]
+		elif zone == 3: return self.Hand_Deck.hands[ID][i]
+		elif zone == 4: return self.Hand_Deck.decks[ID][i]
+		else: raise
 
 	def evolvewithGuide(self, moves, picks):
 		self.picks = picks[:]
@@ -1328,19 +1324,16 @@ class Game:
 		elif move[0] == "startTurn": playCorrect = self.startTurn(finallyWrapUpSwitchTurn=True, sendthruServer=False)
 		elif move[0] == "concede": playCorrect = self.concede(move[1], sendthruServer=False)
 		else:
-			sub = self.find(move[1], move[2])
-			if isinstance(move[3], tuple):
-				tar = [(self.find(i, where) if where else None) for i, where in zip(move[3], move[4])]
-			else:
-				tar = self.find(move[3], move[4]) if move[4] else None
-			if self.GUI: self.GUI.resetSubTarColor(sub, tar)
+			sub = self.locate(move[1])
+			if isinstance(move[2], tuple): tar = [self.locate(locator) for locator in move[2]]
+			else: tar = self.locate(move[2])
 			playCorrect = {"battle": lambda: self.battle(sub, tar, sendthruServer=False),
-							"Power": lambda: sub.use(tar, move[5], sendthruServer=False),
-							"playMinion": lambda: self.playMinion(sub, tar, move[5], move[6], sendthruServer=False),
-							"playAmulet": lambda: self.playAmulet(sub, tar, move[5], move[6], sendthruServer=False),
-							"playWeapon": lambda: self.playWeapon(sub, tar, move[5], sendthruServer=False),
-							"playSpell": lambda: self.playSpell(sub, tar, move[5], sendthruServer=False),
-							"playHero": lambda: self.playHero(sub, move[5], sendthruServer=False),
+							"Power": lambda: sub.use(tar, move[3], sendthruServer=False),
+							"playMinion": lambda: self.playMinion(sub, tar, move[3], move[4], sendthruServer=False),
+							"playAmulet": lambda: self.playAmulet(sub, tar, move[3], move[4], sendthruServer=False),
+							"playWeapon": lambda: self.playWeapon(sub, tar, move[3], sendthruServer=False),
+							"playSpell": lambda: self.playSpell(sub, tar, move[3], sendthruServer=False),
+							"playHero": lambda: self.playHero(sub, move[3], sendthruServer=False),
 							"playCard_4Trade": lambda: self.playCard_4Trade(sub, sendthruServer=False),
 							}[move[0]]()
 			if self.GUI: self.GUI.subject, self.GUI.targets = None, None

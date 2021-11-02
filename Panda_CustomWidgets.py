@@ -66,7 +66,7 @@ class HandZone:
 		posHands, hprHands = posHandsTable[self.y][len(ownHand)], hprHandsTable[self.y][len(ownHand)]
 		for i, card in enumerate(ownHand):
 			genCard(GUI, card, isPlayed=False, scale=scale_Hand, onlyShowCardBack=GUI.need2beHidden(card))
-		para = Parallel(Func(GUI.deckZones[self.ID].draw, len(GUI.Game.Hand_Deck.decks[self.ID]), len(ownHand)) )
+		para = Parallel(Func(GUI.deckZones[self.ID].draw, len(GUI.Game.Hand_Deck.decks[self.ID]), len(ownHand)), name="Place Hand %d"%self.ID)
 		for i, card in enumerate(ownHand):
 			if card.btn != GUI.btnBeingDragged:
 				para.append(Func(card.btn.np.reparentTo, GUI.render))
@@ -140,7 +140,7 @@ class HeroZone:
 
 	def placeCards(self, add2Queue=True, powerFlip=True, weaponDescends=True):
 		#The whole func takes ~1ms
-		GUI, para = self.GUI, Parallel()
+		GUI, para = self.GUI, Parallel(name="Place Hero Zone Cards %d"%self.ID)
 		game = GUI.Game
 		hero, power, weapon = game.heroes[self.ID], game.powers[self.ID], game.availableWeapon(self.ID)
 		#Place the hero
@@ -226,7 +226,7 @@ class HeroZone:
 	def seq_PlaceTurnTrigs(self):
 		cards = [trig.card for trig in self.GUI.Game.turnEndTrigger + self.GUI.Game.turnStartTrigger + self.GUI.Game.trigAuras[self.ID] if trig.ID == self.ID]
 		posTrigs = calc_posTrigs(len(cards), self.heroPos[0], self.heroPos[1] - 2.2, self.heroPos[2]+0.1)
-		para = Parallel()
+		para = Parallel(name="Place Turn Trigs %d" % self.ID)
 		for i, card in enumerate(cards):
 			if not card.btn: genHeroZoneTrigIcon(self.GUI, card, pos=posTrigs[i])
 		for i, card in enumerate(cards):
@@ -263,7 +263,7 @@ class MinionZone:
 		posMinions = posMinionsTable[self.y][len(ownMinions)]
 		for i, card in enumerate(ownMinions):
 			genCard(GUI, card, isPlayed=True, scale=scale_Minion)
-		para = Parallel()
+		para = Parallel(name="Place Minions %d"%self.ID)
 		for i, card in enumerate(ownMinions):
 			para.append(Func(card.btn.np.reparentTo, GUI.render))
 			para.append(LerpPosHprScaleInterval(card.btn.np, duration=0.25, pos=posMinions[i], hpr=(0, 0, 0), scale=scale_Minion))
