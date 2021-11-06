@@ -1,4 +1,3 @@
-from Parts_ConstsFuncsImports import *
 from Parts_CardTypes import *
 from Parts_TrigsAuras import *
 
@@ -80,16 +79,19 @@ class GameRuleAura_DwarvenSharpshooter(GameRuleAura):
 
 """Deathrattles"""
 class Death_TastyFlyfish(Deathrattle_Minion):
+	description = "Deathrattle: Give a random Dragon in your hand +2/+2"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		if dragons := [card for card in self.keeper.Game.Hand_Deck.hands[self.keeper.ID] if "Dragon" in card.race]:
 			self.keeper.giveEnchant(numpyChoice(dragons), 2, 2, name=TastyFlyfish, add2EventinGUI=False)
 
 class Death_BadLuckAlbatross(Deathrattle_Minion):
+	description = "Deathrattle: Shuffle two 1/1 Albatross into your opponent's deck"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		minion = self.keeper
 		minion.shuffleintoDeck([Albatross(minion.Game, 3-minion.ID) for _ in (0, 1)])
 
 class Death_ChromaticEgg(Deathrattle_Minion):
+	description = "Deathrattle: Hatch!"
 	# 变形亡语只能触发一次。
 	def trig(self, signal, ID, subject, target, number, comment, choice=0):
 		if self.canTrig(signal, ID, subject, target, number, comment):
@@ -108,20 +110,24 @@ class Death_ChromaticEgg(Deathrattle_Minion):
 		Copy.savedObj = self.savedObj
 
 class Death_LeperGnome_Dragons(Deathrattle_Minion):
+	description = "Deathrattle: Deal 2 damage to the enemy hero"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.dealsDamage(self.keeper.Game.heroes[3 - self.keeper.ID], 2)
 
 class Death_VioletSpellwing(Deathrattle_Minion):
+	description = "Deathrattle: Add an 'Arcane Missile' to your hand"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.addCardtoHand(ArcaneMissiles, self.keeper.ID)
 
 class Death_DragonriderTalritha(Deathrattle_Minion):
+	description = "Deathrattle: Give a Dragon in your hand +3/+3 and this Deathrattle"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		if dragons := [card for card in self.keeper.Game.Hand_Deck.hands[self.keeper.ID] if "Dragon" in card.race]:
 			self.keeper.giveEnchant(numpyChoice(dragons), 3, 3, trig=Death_DragonriderTalritha, trigType="Deathrattle", connect=False,
 									name=DragonriderTalritha, add2EventinGUI=False)
 
 class Death_MindflayerKaahrj(Deathrattle_Minion):
+	description = "Deathrattle: Summon a new copy of the chosen minion"
 	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
 		return target == self.keeper and self.savedObj
 
@@ -137,17 +143,19 @@ class Death_MindflayerKaahrj(Deathrattle_Minion):
 		Copy.savedObj = self.savedObj
 
 class Death_GraveRune(Deathrattle_Minion):
+	description = "Deathrattle: Summon 2 copies of this"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.summon([type(self.keeper)(self.keeper.Game, self.keeper.ID) for _ in (0, 1)])
 
-
 class Death_Chronobreaker(Deathrattle_Minion):
+	description = "Deathrattle: If you're holding a Dragon, deal 3 damage to all enemy minions"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		if self.keeper.Game.Hand_Deck.holdingDragon(self.keeper.ID):
 			targets = self.keeper.Game.minionsonBoard(3 - self.keeper.ID)
 			self.keeper.AOE_Damage(targets, [3 for minion in targets])
 
 class Death_Waxadred(Deathrattle_Minion):
+	description = "Deathrattle: Shuffle a Candle into your deck that resummons Waxadred when drawn"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.shuffleintoDeck(WaxadredsCandle(self.keeper.Game, self.keeper.ID))
 
@@ -316,7 +324,7 @@ class Trig_Chenvaala(Trig_Countdown):
 			counter = self.counter
 			if signal == "NewTurnStarts": self.counter = 3
 			else: self.counter -= 1
-			if counter != self.counter and (btn := self.keeper.btn) and "Hourglass" in btn.icons:
+			if counter != self.counter and (btn := self.keeper.btn):
 				btn.GUI.seqHolder[-1].append(btn.icons["Hourglass"].seqUpdateText())
 			if self.counter < 1: self.keeper.summon(SnowElemental(self.keeper.Game, self.keeper.ID))
 
@@ -426,7 +434,34 @@ class Trig_Skybarge(TrigBoard):
 		chars = self.keeper.Game.charsAlive(3-self.keeper.ID)
 		if chars: self.keeper.dealsDamage(numpyChoice(chars), 2)
 		
-		
+
+
+"""Game TrigEffects and Game Auras"""
+class SwapHeroPowersBack(TrigEffect):
+	trigType = "TurnStart"
+	def trigEffect(self): self.card.swapHeroPowers()
+
+class GameManaAura_BlowtorchSaboteur(GameManaAura_OneTime):
+	to, temporary = 3, True
+	def applicable(self, target): return target.ID == self.ID
+
+class GameAura_GorutheMightree(GameAura_AlwaysOn):
+	attGain, healthGain, counter = 1, 1, 1
+	def applicable(self, target): return target.name == "True"
+
+	def upgrade(self):
+		self.attGain = self.healthGain = self.counter = self.counter + 1
+		for receiver in self.receivers:
+			receiver.attGain, receiver.healthGain = self.attGain, self.healthGain
+			receiver.recipient.calcStat()
+		if self.counter and self.card.btn: self.card.btn.trigAni(self.counter)
+
+
+class GameManaAura_Dragoncaster(GameManaAura_OneTime):
+	to = 0
+	def applicable(self, target): return target.ID == self.ID and target.category == "Spell"
+
+
 #迦拉克隆通常不能携带多张，但是如果起始卡组中有多张的话，则尽量选择与玩家职业一致的迦拉克隆为主迦拉克隆；如果不能如此，则第一个检测到的为主迦拉克隆
 #迦拉克隆如果被变形为其他随从，（通过咒术师等），只要对应卡的职业有迦拉克隆，会触发那个新职业的迦拉克隆的效果。
 #视频链接https://www.bilibili.com/video/av80010478?from=search&seid=3438568171430047785
@@ -2374,8 +2409,8 @@ class NecriumApothecary(Minion):
 		
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		if self.Game.Counters.numCardsPlayedThisTurn[self.ID] > 0:
-			if card := self.drawCertainCard(lambda card: card.category == "Minion")[0]:
-				self.giveEnchant(self, trigs=(type(trig) for trig in card.deathrattles), trigType="Deathrattle", connect=self.onBoard)
+			if minion := self.drawCertainCard(lambda card: card.category == "Minion")[0]:
+				self.giveEnchant(self, trigs=(type(trig) for trig in minion.deathrattles), trigType="Deathrattle", connect=self.onBoard)
 		
 		
 class Stowaway(Minion):
@@ -2796,7 +2831,8 @@ class NetherBreath(Spell):
 				self.effects["Lifesteal"] = 1
 			else: damage = self.calcDamage(2)
 			self.dealsDamage(target, damage)
-		
+		return target
+
 
 class DarkSkies(Spell):
 	Class, school, name = "Warlock", "Fel", "Dark Skies"
@@ -3141,8 +3177,8 @@ class GalakrondtheUnbreakable(Galakrond_Hero):
 		self.upgradedGalakrond = GalakrondtheApocalypes_Warrior
 		
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		card, mana, entersHand = self.drawCertainCard(lambda card: card.category == "Minion")
-		if entersHand: self.giveEnchant(card, 4, 4, name=GalakrondtheUnbreakable, add2EventinGUI=False)
+		minion, mana, entersHand = self.drawCertainCard(lambda card: card.category == "Minion")
+		if entersHand: self.giveEnchant(minion, 4, 4, name=GalakrondtheUnbreakable, add2EventinGUI=False)
 		
 class GalakrondtheApocalypes_Warrior(Galakrond_Hero):
 	mana, weapon, description = 7, None, "Battlecry: Draw 2 minions. Give them +4/+4. (Invoke twice to upgrade)"
@@ -3155,9 +3191,9 @@ class GalakrondtheApocalypes_Warrior(Galakrond_Hero):
 		
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		for _ in (0, 1):
-			card, mana, entersHand = self.drawCertainCard(lambda card: card.category == "Minion")
-			if not card: break
-			elif entersHand: self.giveEnchant(card, 4, 4, name=GalakrondtheUnbreakable, add2EventinGUI=False)
+			minion, mana, entersHand = self.drawCertainCard(lambda card: card.category == "Minion")
+			if not minion: break
+			elif entersHand: self.giveEnchant(minion, 4, 4, name=GalakrondtheUnbreakable, add2EventinGUI=False)
 		
 class GalakrondAzerothsEnd_Warrior(Galakrond_Hero):
 	mana, weapon, description = 7, None, "Battlecry: Draw 4 minions. Give them +4/+4. Equip a 5/2 Claw"
@@ -3170,9 +3206,9 @@ class GalakrondAzerothsEnd_Warrior(Galakrond_Hero):
 		
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		for _ in (0, 1, 2, 3):
-			card, mana, entersHand = self.drawCertainCard(lambda card: card.category == "Minion")
-			if not card: break
-			elif entersHand: self.giveEnchant(card, 4, 4, name=GalakrondtheUnbreakable, add2EventinGUI=False)
+			minion, mana, entersHand = self.drawCertainCard(lambda card: card.category == "Minion")
+			if not minion: break
+			elif entersHand: self.giveEnchant(minion, 4, 4, name=GalakrondtheUnbreakable, add2EventinGUI=False)
 		self.equipWeapon(DragonClaw(self.Game, self.ID))
 		
 		
@@ -3194,34 +3230,27 @@ class DeathwingMadAspect(Minion):
 			minion = minions.pop()
 			if minion.onBoard and minion.health > 0 and not minion.dead:
 				game.battle(game.minionPlayed, minion, verifySelectable=False, useAttChance=True, resolveDeath=False, resetRedirTrig=False)
-		
-
-"""Game TrigEffects and Game Auras"""
-class SwapHeroPowersBack(TrigEffect):
-	card, trigType = GrizzledWizard, "TurnStart"
-	def trigEffect(self): self.card.swapHeroPowers()
-
-class GameManaAura_BlowtorchSaboteur(GameManaAura_OneTime):
-	card, to, temporary = BlowtorchSaboteur, 3, True
-	def applicable(self, target): return target.ID == self.ID
-
-class GameAura_GorutheMightree(GameAura_AlwaysOn):
-	card, attGain, healthGain, counter = GorutheMightree, 1, 1, 1
-	def applicable(self, target): return target.name == "True"
-
-	def upgrade(self):
-		self.attGain = self.healthGain = self.counter = self.counter + 1
-		for receiver in self.receivers:
-			receiver.attGain, receiver.healthGain = self.attGain, self.healthGain
-			receiver.recipient.calcStat()
-		if self.counter and self.card.btn: self.card.btn.trigAni(self.counter)
 
 
-class GameManaAura_Dragoncaster(GameManaAura_OneTime):
-	card, to = Dragoncaster, 0
-	def applicable(self, target): return target.ID == self.ID and target.category == "Spell"
-	
-	
+
+Death_TastyFlyfish.cardType = TastyFlyfish
+Death_BadLuckAlbatross.cardType = BadLuckAlbatross
+Death_ChromaticEgg.cardType = ChromaticEgg
+Death_LeperGnome_Dragons.cardType = LeperGnome_Dragons
+Death_VioletSpellwing.cardType = VioletSpellwing
+Death_DragonriderTalritha.cardType = DragonriderTalritha
+Death_MindflayerKaahrj.cardType = MindflayerKaahrj
+Death_GraveRune.cardType = GraveRune
+Death_Chronobreaker.cardType = Chronobreaker
+Death_Waxadred.cardType = Waxadred
+
+SwapHeroPowersBack.cardType = GrizzledWizard
+GameManaAura_BlowtorchSaboteur.cardType = BlowtorchSaboteur
+GameAura_GorutheMightree.cardType = GorutheMightree
+GameManaAura_Dragoncaster.cardType = Dragoncaster
+
+
+
 Dragons_Cards = [
 		#Neutral
 		EvasiveFeywing, FrizzKindleroost, Hippogryph, HoardPillager, TrollBatrider, WingCommander, ZulDrakRitualist,
@@ -3301,16 +3330,3 @@ Dragons_Cards_Collectible = [
 		SkyRaider, RitualChopper, Awaken, Ancharrr, EVILQuartermaster, RammingSpeed, ScionofRuin, Skybarge, MoltenBreath,
 		GalakrondtheUnbreakable, DeathwingMadAspect,
 ]
-
-
-TrigsDeaths_Dragons = {Death_TastyFlyfish: (TastyFlyfish, "Deathrattle: Give a random Dragon in your hand +2/+2"),
-					   Death_BadLuckAlbatross: (BadLuckAlbatross, "Deathrattle: Shuffle two 1/1 Albatross into your opponent's deck"),
-					   Death_ChromaticEgg: (ChromaticEgg, "Deathrattle: Hatch"),
-					   Death_LeperGnome_Dragons: (LeperGnome_Dragons, "Deathrattle: Deal 2 damage to the enemy hero"),
-					   Death_VioletSpellwing: (VioletSpellwing, "Deathrattle: Add an 'Arcane Missile' to your hand"),
-					   Death_DragonriderTalritha: (DragonriderTalritha, "Deathrattle: Give a Dragon in your hand +3/+3 and this Deathrattle"),
-					   Death_MindflayerKaahrj: (MindflayerKaahrj, "Deathrattle: Summon a new copy of the chosen minion"),
-					   Death_GraveRune: (GraveRune, "Deathrattle: Summon 2 copies of this"),
-					   Death_Chronobreaker: (Chronobreaker, "Deathrattle: If you're holding a Dragon, deal 3 damage to all enemy minions"),
-					   Death_Waxadred: (Waxadred, "Deathrattle: Shuffle a Candle into your deck that resummons Waxadred when drawn"),
-					   }

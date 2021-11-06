@@ -1,4 +1,3 @@
-from Parts_ConstsFuncsImports import *
 from Parts_CardTypes import *
 from Parts_TrigsAuras import *
 
@@ -615,34 +614,42 @@ class Spell_Forge(Spell):
 
 """Deathrattles"""
 class Death_DeathsHeadCultist(Deathrattle_Minion):
+	description = "Deathrattle: Restore 4 Health to your hero"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.restoresHealth(self.keeper.heroes[self.keeper.ID], self.keeper.calcHeal(4))
 
 class Death_DarkspearBerserker(Deathrattle_Minion):
+	description = "Deathrattle: Deal 5 damage to your hero"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.dealsDamage(self.keeper.heroes[3-self.keeper.ID], 5)
 
 class Death_BurningBladeAcolyte(Deathrattle_Minion):
+	description = "Deathrattle: Summon a 5/8 Demonspawn with Taunt"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.summon(Demonspawn(self.keeper.Game, self.keeper.ID))
 
 class Death_Tuskpiercer(Deathrattle_Weapon):
+	description = "Deathrattle: Draw a Deathrattle minion"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.drawCertainCard(lambda card: card.category == "Minion" and card.deathrattles)
 
 class Death_Razorboar(Deathrattle_Minion):
+	description = "Deathrattle: Summon a Deathrattle minion that costs (3) or less from your hand"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.try_SummonfromHand(func=lambda card: card.category == "Minion" and card.deathrattles and card.mana < 4)
 		
 class Death_RazorfenBeastmaster(Deathrattle_Minion):
+	description = "Deathrattle: Summon a Deathrattle minion that costs (4) or less from your hand"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.try_SummonfromHand(func=lambda card: card.category == "Minion" and card.deathrattles and card.mana < 5)
 		
 class Death_ThickhideKodo(Deathrattle_Minion):
+	description = "Deathrattle: Gain 5 Armor"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.giveHeroAttackArmor(self.keeper.ID, armor=5)
 
 class Death_NorthwatchSoldier(Deathrattle_Minion):
+	description = "Deathrattle: Transform back into secret"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		if self.savedObj:
 			self.savedObj.ID = self.keeper.ID
@@ -656,47 +663,118 @@ class Death_NorthwatchSoldier(Deathrattle_Minion):
 	def assistCreateCopy(self, Copy):
 		Copy.savedObj = self.savedObj.createCopy(Copy.Game)
 
-
 class Death_LightshowerElemental(Deathrattle_Minion):
+	description = "Deathrattle: Restore 8 Health to all friendly characters"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		keeper = self.keeper
 		targets, heal = keeper.Game.minionsonBoard(keeper.ID) + [keeper.Game.heroes[keeper.ID]], keeper.calcHeal(8)
 		keeper.AOE_Heal(targets, [heal]*len(targets))
 
 class Death_ApothecaryHelbrim(Deathrattle_Minion):
+	description = "Deathrattle: Add a random Poison to your hand"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.addCardtoHand(numpyChoice(self.rngPool("Poisons")), self.keeper.ID)
 
 class Death_SpawnpoolForager(Deathrattle_Minion):
+	description = "Deathrattle: Summon a 1/1 Tinyfin"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.summon(DiremuckTinyfin(self.keeper.Game, self.keeper.ID))
 
 class Death_KabalOutfitter(Deathrattle_Minion):
+	description = "Deathrattle: Give another random friendly minion +1/+1"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		if minions := self.keeper.Game.minionsonBoard(self.keeper.ID, self.keeper):
 			self.keeper.giveEnchant(numpyChoice(minions), 1, 1, name=KabalOutfitter)
 
 class Death_DevouringEctoplasm(Deathrattle_Minion):
+	description = "Deathrattle: Summon a 2/2 Adventurer with random bonus effect"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.summon(numpyChoice(Adventurers)(self.keeper.Game, self.keeper.ID))
 
 class Death_Felrattler(Deathrattle_Minion):
+	description = "Deathrattle: Deal 1 damage to all enemy minions"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		targets = self.keeper.Game.minionsonBoard(1) + self.keeper.Game.minionsonBoard(2)
 		self.keeper.AOE_Damage(targets, [1]*len(targets))
 
 class Death_FangboundDruid(Deathrattle_Minion):
+	description = "Deathrattle: Reduce the cost of a random Beast in your hand by (2)"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		if cards := self.keeper.findCards4ManaReduction(lambda card: "Beast" in card.race):
 			ManaMod(numpyChoice(cards), by=-2).applies()
 
 class Death_SeedcloudBuckler(Deathrattle_Weapon):
+	description = "Deathrattle: Give your minions Divine Shield"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.AOE_GiveEnchant(self.keeper.Game.minionsonBoard(self.keeper.ID), effGain="Divine Shield", name=SeedcloudBuckler)
 		
 class Death_KreshLordofTurtling(Deathrattle_Minion):
+	description = "Deathrattle: Equip a 2/5 Turtle Spike"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.equipWeapon(TurtleSpike(self.keeper.Game, self.keeper.ID))
+
+
+"""Game TrigEffects and game Auras"""
+class GameManaAura_KindlingElemental(GameManaAura_OneTime):
+	by, temporary = -1, False
+	def applicable(self, target): return target.ID == self.ID and "Elemental" in target.race
+
+class TalentedArcanist_Effect(TrigEffect):
+	signals, counter, trigType = ("SpellBeenCast",), 2, "Conn&TurnEnd&OnlyKeepOne"
+	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
+		return subject.ID == self.ID
+
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		self.Game.heroes[self.ID].losesEffect("Spell Damage", amount=2)
+		self.disconnect()
+
+	def trigEffect(self):
+		self.Game.heroes[self.ID].losesEffect("Spell Damage", amount=2)
+
+
+class SigilofSilence_Effect(TrigEffect):
+	trigType = "TurnStart&OnlyKeepOne"
+	def trigEffect(self):
+		self.Game.silenceMinions(self.Game.minionsonBoard(3 - self.ID))
+
+class SigilofFlame_Effect(TrigEffect):
+	trigType = "TurnStart&OnlyKeepOne"
+	def trigEffect(self):
+		damage = self.card.calcDamage(3)
+		targets = self.Game.minionsonBoard(3 - self.ID)
+		self.card.AOE_Damage(targets, [damage] * len(targets))
+
+class SigilofSummoning_Effect(TrigEffect):
+	trigType = "TurnStart&OnlyKeepOne"
+	def trigEffect(self):
+		self.card.summon([WailingDemon(self.Game, self.ID) for _ in (0, 1)])
+
+
+class ShroudofConcealment_Effect(TrigEffect):
+	signals, counter, trigtype = ("MinionBeenPlayed",), 2, "Conn&TurnEnd"
+	def __init__(self, Game, ID, cardsDrawn=()):
+		super().__init__(Game, ID)
+		self.savedObjs = cardsDrawn
+
+	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
+		return subject.ID == self.ID and subject in self.savedObjs
+
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		subject.getsEffect("Temp Stealth", source=type(self))
+		self.savedObjs.remove(subject)
+		if not self.savedObjs: self.disconnect()
+
+	def assistCreateCopy(self, Copy):
+		Copy.cardsDrawn = [card.createCopy(Copy.Game) for card in self.savedObjs]
+
+
+class GameManaAura_ScabbsCutterbutter(GameManaAura_OneTime):
+	by = -2
+	def applicable(self, target): return target.ID == self.ID
+
+class GameManaAura_RazormaneBattleguard(GameManaAura_OneTime):
+	by = -2
+	def applicable(self, target): return target.ID == self.ID and target.category == "Minion" and target.effects["Taunt"] > 0
 
 
 """Neutral Cards"""
@@ -777,7 +855,6 @@ class Peon(Minion):
 		return [Class + " Spells" for Class in pools.Classes], \
 			   [[card for card in cards if card.category == "Spell"] for cards in pools.ClassCards.values()]
 	
-
 
 class TalentedArcanist(Minion):
 	Class, race, name = "Neutral", "", "Talented Arcanist"
@@ -1719,8 +1796,8 @@ class LivingSeedRank3(Spell):
 	description = "Draw a Beast. Reduce its Cost by (3)"
 	name_CN = "生命之种（等级3）"
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=0):
-		card, mana, entersHand = self.drawCertainCard(lambda card: "Beast" in card.race)
-		if card and entersHand: ManaMod(card, by=-3).applies()
+		beast, mana, entersHand = self.drawCertainCard(lambda card: "Beast" in card.race)
+		if beast and entersHand: ManaMod(beast, by=-3).applies()
 
 class LivingSeedRank2(Spell_Forge):
 	Class, school, name = "Druid", "Nature", "Living Seed (Rank 2)"
@@ -1730,8 +1807,8 @@ class LivingSeedRank2(Spell_Forge):
 	upgradeMana, upgradedVersion = 10, LivingSeedRank3
 	name_CN = "生命之种（等级2）"
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=0):
-		card, mana, entersHand = self.drawCertainCard(lambda card: "Beast" in card.race)
-		if card and entersHand: ManaMod(card, by=-2).applies()
+		beast, mana, entersHand = self.drawCertainCard(lambda card: "Beast" in card.race)
+		if beast and entersHand: ManaMod(beast, by=-2).applies()
 
 class LivingSeedRank1(Spell_Forge):
 	Class, school, name = "Druid", "Nature", "Living Seed (Rank 1)"
@@ -1741,8 +1818,8 @@ class LivingSeedRank1(Spell_Forge):
 	upgradeMana, upgradedVersion = 5, LivingSeedRank2
 	name_CN = "生命之种（等级1）"
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=0):
-		card, mana, entersHand = self.drawCertainCard(lambda card: "Beast" in card.race)
-		if card and entersHand: ManaMod(card, by=-1).applies()
+		beast, mana, entersHand = self.drawCertainCard(lambda card: "Beast" in card.race)
+		if beast and entersHand: ManaMod(beast, by=-1).applies()
 
 
 class MarkoftheSpikeshell(Spell):
@@ -1919,7 +1996,6 @@ class TameBeastRank3(Spell):
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=0):
 		self.summon(TamedThunderLizard(self.Game, self.ID))
 
-
 class TameBeastRank2(Spell_Forge):
 	Class, school, name = "Hunter", "", "Tame Beast (Rank 2)"
 	requireTarget, mana, effects = False, 2, ""
@@ -1929,7 +2005,6 @@ class TameBeastRank2(Spell_Forge):
 	name_CN = "驯服野兽（等级2）"
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=0):
 		self.summon(TamedScorpid(self.Game, self.ID))
-
 
 class TameBeastRank1(Spell_Forge):
 	Class, school, name = "Hunter", "", "Tame Beast (Rank 1)"
@@ -1941,7 +2016,6 @@ class TameBeastRank1(Spell_Forge):
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=0):
 		self.summon(TamedCrab(self.Game, self.ID))
 
-
 class TamedCrab(Minion):
 	Class, race, name = "Hunter", "Beast", "Tamed Crab"
 	mana, attack, health = 2, 2, 2
@@ -1949,14 +2023,12 @@ class TamedCrab(Minion):
 	requireTarget, effects, description = False, "Rush", "Rush"
 	name_CN = "驯服的螃蟹"
 
-
 class TamedScorpid(Minion):
 	Class, race, name = "Hunter", "Beast", "Tamed Scorpid"
 	mana, attack, health = 4, 4, 4
 	index = "THE_BARRENS~Hunter~Minion~4~4~4~Beast~Tamed Scorpid~Rush~Uncollectible"
 	requireTarget, effects, description = False, "Rush", "Rush"
 	name_CN = "驯服的蝎子"
-
 
 class TamedThunderLizard(Minion):
 	Class, race, name = "Hunter", "Beast", "Tamed Thunder Lizard"
@@ -1975,7 +2047,7 @@ class PackKodo(Minion):
 	poolIdentifier = "Beasts as Druid"
 	@classmethod
 	def generatePool(cls, pools):
-		Classes, ls_Pools = [], []
+		classes, ls_Pools = [], []
 		neutralBeasts, neutralWeapons = [], []
 		for card in pools.NeutralCards:
 			if card.category == "Weapon": neutralWeapons.append(card)
@@ -1988,13 +2060,13 @@ class PackKodo(Minion):
 				elif card.category == "Weapon": weapons.append(card)
 			beasts.extend(neutralBeasts)
 			weapons.extend(neutralWeapons)
-			Classes.append("Beasts as "+Class)
-			Classes.append(Class+" Secrets")
-			Classes.append("Weapons as "+Class)
+			classes.append("Beasts as "+Class)
+			classes.append(Class+" Secrets")
+			classes.append("Weapons as "+Class)
 			ls_Pools.append(beasts)
 			ls_Pools.append(secrets)
 			ls_Pools.append(weapons)
-		return Classes, ls_Pools
+		return classes, ls_Pools
 
 	def decidePools(self):
 		Class = classforDiscover(self)
@@ -3453,7 +3525,7 @@ class FrostweaveDungeoneer(Minion):
 	name_CN = "织霜地下城历险家"
 
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		if (card := self.drawCertainCard(lambda card: card.category == "Spell")[0]) and card.school == "Frost":
+		if (spell := self.drawCertainCard(lambda card: card.category == "Spell")[0]) and spell.school == "Frost":
 			self.summon([FrostedElemental(self.Game, self.ID) for _ in (0, 1)], relative="<>")
 
 
@@ -3544,8 +3616,8 @@ class DevoutDungeoneer(Minion):
 	name_CN = "虔诚地下城历险家"
 
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		card, mana, entersHand = self.drawCertainCard(lambda card: card.category == "Spell")
-		if entersHand and card.school == "Holy": ManaMod(card, by=-2).applies()
+		spell, mana, entersHand = self.drawCertainCard(lambda card: card.category == "Spell")
+		if entersHand and spell.school == "Holy": ManaMod(spell, by=-2).applies()
 
 
 class AgainstAllOdds(Spell):
@@ -3644,7 +3716,7 @@ class PrimalDungeoneer(Minion):
 	name_CN = "原初地下城历险家"
 
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		if (card := self.drawCertainCard(lambda card: card.category == "Spell")[0]) and card.school == "Nature":
+		if (spell := self.drawCertainCard(lambda card: card.category == "Spell")[0]) and spell.school == "Nature":
 			self.drawCertainCard(lambda card: "Elemental" in card.race)
 
 
@@ -3739,136 +3811,95 @@ class TurtleSpike(Weapon):
 	name_CN = "龟甲尖刺"
 
 
-"""Game TrigEffects and game Auras"""
-class GameManaAura_KindlingElemental(GameManaAura_OneTime):
-	card, by, temporary = KindlingElemental, -1, False
-	def applicable(self, target): return target.ID == self.ID and "Elemental" in target.race
+"""Handle """
+Death_DeathsHeadCultist.cardType = DeathsHeadCultist
+Death_DarkspearBerserker.cardType = DarkspearBerserker
+Death_BurningBladeAcolyte.cardType = BurningBladeAcolyte
+Death_Tuskpiercer.cardType = Tuskpiercer
+Death_Razorboar.cardType = Razorboar
+Death_RazorfenBeastmaster.cardType = RazorfenBeastmaster
+Death_ThickhideKodo.cardType = ThickhideKodo
+Death_NorthwatchSoldier.cardType = NorthwatchSoldier
+Death_LightshowerElemental.cardType = LightshowerElemental
+Death_ApothecaryHelbrim.cardType = ApothecaryHelbrim
+Death_SpawnpoolForager.cardType = SpawnpoolForager
+Death_KabalOutfitter.cardType = KabalOutfitter
+Death_DevouringEctoplasm.cardType = DevouringEctoplasm
+Death_Felrattler.cardType = Felrattler
+Death_FangboundDruid.cardType = FangboundDruid
+Death_SeedcloudBuckler.cardType = SeedcloudBuckler
+Death_KreshLordofTurtling.cardType = KreshLordofTurtling
 
-class TalentedArcanist_Effect(TrigEffect):
-	card, signals, counter, trigType = TalentedArcanist, ("SpellBeenCast",), 2, "Conn&TurnEnd&OnlyKeepOne"
-	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
-		return subject.ID == self.ID
+Trig_SwapBackPowerAfter2Uses.cardType = Yoink
+Trig_SwapBackPowerAfter2Uses.description = "Swap back after 2 uses"
+Trig_ParalyticPoison.cardType = ParalyticPoison
+Trig_ParalyticPoison.description = "Your hero is Immune while attacking"
+Trig_SilverleafPoison.cardType = SilverleafPoison
+Trig_SilverleafPoison.description = "After your hero attacks draw a card"
 
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.Game.heroes[self.ID].losesEffect("Spell Damage", amount=2)
-		self.disconnect()
-
-	def trigEffect(self):
-		self.Game.heroes[self.ID].losesEffect("Spell Damage", amount=2)
-
-
-class SigilofSilence_Effect(TrigEffect):
-	card, trigType = SigilofSilence, "TurnStart&OnlyKeepOne"
-	def trigEffect(self):
-		self.Game.silenceMinions(self.Game.minionsonBoard(3 - self.ID))
-
-class SigilofFlame_Effect(TrigEffect):
-	card, trigType = SigilofFlame, "TurnStart&OnlyKeepOne"
-	def trigEffect(self):
-		damage = self.card.calcDamage(3)
-		targets = self.Game.minionsonBoard(3 - self.ID)
-		self.card.AOE_Damage(targets, [damage] * len(targets))
-
-class SigilofSummoning_Effect(TrigEffect):
-	card, trigType = SigilofSummoning, "TurnStart&OnlyKeepOne"
-	def trigEffect(self):
-		self.card.summon([WailingDemon(self.Game, self.ID) for _ in (0, 1)])
-
-
-class ShroudofConcealment_Effect(TrigEffect):
-	card, signals, counter, trigtype = ShroudofConcealment, ("MinionBeenPlayed",), 2, "Conn&TurnEnd"
-	def __init__(self, Game, ID, cardsDrawn=()):
-		super().__init__(Game, ID)
-		self.savedObjs = cardsDrawn
-
-	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
-		return subject.ID == self.ID and subject in self.savedObjs
-
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		subject.getsEffect("Temp Stealth", source=type(self))
-		self.savedObjs.remove(subject)
-		if not self.savedObjs: self.disconnect()
-
-	def assistCreateCopy(self, Copy):
-		Copy.cardsDrawn = [card.createCopy(Copy.Game) for card in self.savedObjs]
+GameManaAura_KindlingElemental.cardType = KindlingElemental
+TalentedArcanist_Effect.cardType = TalentedArcanist
+SigilofSilence_Effect.cardType = SigilofSilence
+SigilofFlame_Effect.cardType = SigilofFlame
+SigilofSummoning_Effect.cardType = SigilofSummoning
+ShroudofConcealment_Effect.cardType = ShroudofConcealment
+GameManaAura_ScabbsCutterbutter.cardType = ScabbsCutterbutter
+GameManaAura_RazormaneBattleguard.cardType = RazormaneBattleguard
 
 
-class GameManaAura_ScabbsCutterbutter(GameManaAura_OneTime):
-	card, by = ScabbsCutterbutter, -2
-	def applicable(self, target): return target.ID == self.ID
-
-class GameManaAura_RazormaneBattleguard(GameManaAura_OneTime):
-	card, by = RazormaneBattleguard, -2
-	def applicable(self, target): return target.ID == self.ID and target.category == "Minion" and target.effects["Taunt"] > 0
-
-
-TrigsDeaths_Barrens = {Death_DeathsHeadCultist: (DeathsHeadCultist, "Deathrattle: Restore 4 Health to your hero"),
-						Death_DarkspearBerserker: (DarkspearBerserker, "Deathrattle: Deal 5 damage to your hero"),
-						Death_BurningBladeAcolyte: (BurningBladeAcolyte, "Deathrattle: Summon a 5/8 Demonspawn with Taunt"),
-						Death_Tuskpiercer: (Tuskpiercer, "Deathrattle: Draw a Deathrattle minion"),
-						Death_Razorboar: (Razorboar, "Deathrattle: Summon a Deathrattle minion that costs (3) or less from your hand"),
-						Death_RazorfenBeastmaster: (RazorfenBeastmaster, "Deathrattle: Summon a Deathrattle minion that costs (4) or less from your hand"),
-						Death_ThickhideKodo: (ThickhideKodo, "Deathrattle: Gain 5 Armor"),
-						Death_NorthwatchSoldier: (NorthwatchSoldier, "Deathrattle: Transform back into secret"),
-						Death_LightshowerElemental: (LightshowerElemental, "Deathrattle: Restore 8 Health to all friendly characters"),
-						Trig_SwapBackPowerAfter2Uses: (Yoink, "Deathrattle: Swap back after 2 uses"),
-						Trig_ParalyticPoison: (ParalyticPoison, "Deathrattle: Your hero is Immune while attacking"),
-						Trig_SilverleafPoison: (SilverleafPoison, "Deathrattle: After your hero attacks draw a card"),
-						Death_ApothecaryHelbrim: (ApothecaryHelbrim, "Deathrattle: Add a random Poison to your hand"),
-						Death_SpawnpoolForager: (SpawnpoolForager, "Deathrattle: Summon a 1/1 Tinyfin"),
-						Death_KabalOutfitter: (KabalOutfitter, "Deathrattle: Give another random friendly minion +1/+1"),
-						Death_DevouringEctoplasm: (DevouringEctoplasm, "Deathrattle: Summon a 2/2 Adventurer with random bonus effect"),
-						Death_Felrattler: (Felrattler, "Deathrattle: Deal 1 damage to all enemy minions"),
-						Death_FangboundDruid: (FangboundDruid, "Deathrattle: Reduce the cost of a random Beast in your hand by (2)"),
-						Death_SeedcloudBuckler: (SeedcloudBuckler, "Deathrattle: Give your minions Divine Shield"),
-						Death_KreshLordofTurtling: (KreshLordofTurtling, "Deathrattle: Equip a 2/5 Turtle Spike"),
-						}
-
-RankedSpells = [FuryRank1, LivingSeedRank1, TameBeastRank1, FlurryRank1, ConvictionRank1, CondemnRank1, \
+RankedSpells = [FuryRank1, LivingSeedRank1, TameBeastRank1, FlurryRank1, ConvictionRank1, CondemnRank1,
 				WickedStabRank1, ChainLightningRank1, ImpSwarmRank1, ConditioningRank1]
 
+
 Barrens_Cards = [
-		#Neutral
+		# Neutral
 		KindlingElemental, FarWatchPost, HecklefangHyena, LushwaterMurcenary, LushwaterScout, OasisThrasher, Peon,
 		TalentedArcanist, ToadoftheWilds, BarrensTrapper, CrossroadsGossiper, DeathsHeadCultist, HogRancher, Hog,
 		HordeOperative, Mankrik, OlgraMankriksWife, MankrikConsumedbyHatred, MorshanWatchPost, WatchfulGrunt,
 		RatchetPrivateer, SunwellInitiate, VenomousScorpid, BlademasterSamuro, CrossroadsWatchPost, DarkspearBerserker,
-		GruntledPatron, InjuredMarauder, KazakusGolemShaper, SouthseaScoundrel, SpiritHealer, BarrensBlacksmith,
+		GruntledPatron, InjuredMarauder, KazakusGolemShaper, GreaterGolem_Firebloom, GreaterGolem_Gromsblood,
+		GreaterGolem_Icecap, GreaterGolem_Kingsblood, GreaterGolem_Mageroyal, GreaterGolem_Wildvine, LesserGolem_Firebloom,
+		LesserGolem_Gromsblood, LesserGolem_Icecap, LesserGolem_Kingsblood, LesserGolem_Mageroyal, LesserGolem_Wildvine,
+		SuperiorGolem_Firebloom, SuperiorGolem_Gromsblood, SuperiorGolem_Icecap, SuperiorGolem_Kingsblood,
+		SuperiorGolem_Mageroyal, SuperiorGolem_Wildvine, SouthseaScoundrel, SpiritHealer, BarrensBlacksmith,
 		BurningBladeAcolyte, Demonspawn, GoldRoadGrunt, RazormaneRaider, ShadowHunterVoljin, TaurajoBrave, KargalBattlescar,
 		Lookout, PrimordialProtector,
-		#Demon Hunter
+		# Demon Hunter
 		FuryRank1, FuryRank2, FuryRank3, Tuskpiercer, Razorboar, SigilofFlame, SigilofSilence, VileCall, RavenousVilefiend,
 		RazorfenBeastmaster, KurtrusAshfallen, VengefulSpirit, DeathSpeakerBlackthorn,
-		#Druid
+		# Druid
 		LivingSeedRank1, LivingSeedRank2, LivingSeedRank3, MarkoftheSpikeshell, RazormaneBattleguard, ThorngrowthSentries,
 		ThornguardTurtle, GuffRunetotem, PlaguemawtheRotting, PridesFury, ThickhideKodo, CelestialAlignment,
 		DruidofthePlains, DruidofthePlains_Taunt,
-		#Hunter
+		# Hunter
 		SunscaleRaptor, WoundPrey, SwiftHyena, KolkarPackRunner, ProspectorsCaravan, TameBeastRank1, TameBeastRank2,
 		TameBeastRank3, TamedCrab, TamedScorpid, TamedThunderLizard, PackKodo, TavishStormpike, PiercingShot,
 		WarsongWrangler, BarakKodobane,
-		#Mage
+		# Mage
 		FlurryRank1, FlurryRank2, FlurryRank3, RunedOrb, Wildfire, ArcaneLuminary, OasisAlly, Rimetongue, FrostedElemental,
 		RecklessApprentice, RefreshingSpringWater, VardenDawngrasp, MordreshFireEye,
-		#Paladin
+		# Paladin
 		ConvictionRank1, ConvictionRank2, ConvictionRank3, GallopingSavior, HolySteed, KnightofAnointment, SoldiersCaravan,
 		SwordoftheFallen, NorthwatchCommander, CarielRoame, VeteranWarmedic, BattlefieldMedic, InvigoratingSermon,
 		CannonmasterSmythe, NorthwatchSoldier,
-		#Priest
+		# Priest
 		DesperatePrayer, CondemnRank1, CondemnRank2, CondemnRank3, SerenaBloodfeather, SoothsayersCaravan, DevouringPlague,
 		VoidFlayer, Xyrella, PriestofAnshe, LightshowerElemental, PowerWordFortitude,
-		#Rogue
+		# Rogue
 		ParalyticPoison, Yoink, EfficientOctobot, SilverleafPoison, WickedStabRank1, WickedStabRank2, WickedStabRank3,
 		FieldContact, SwinetuskShank, ApothecaryHelbrim, OilRigAmbusher, ScabbsCutterbutter,
-		#Shaman
+		# Shaman
 		SpawnpoolForager, DiremuckTinyfin, ChainLightningRank1, ChainLightningRank2, ChainLightningRank3, FiremancerFlurgl,
 		SouthCoastChieftain, TinyfinsCaravan, AridStormer, NofinCanStopUs, Brukan, EarthRevenant, LilypadLurker,
-		#Warlock
+		# Warlock
 		AltarofFire, GrimoireofSacrifice, ApothecarysCaravan, ImpSwarmRank1, ImpFamiliar, ImpSwarmRank2, ImpSwarmRank3,
 		BloodShardBristleback, KabalOutfitter, TamsinRoame, SoulRend, NeeruFireblade, BarrensScavenger,
-		#Warrior
+		# Warrior
 		WarsongEnvoy, BulkUp, ConditioningRank1, ConditioningRank2, ConditioningRank3, Rokara, OutridersAxe, Rancor,
 		WhirlingCombatant, MorshanElite, StonemaulAnchorman, OverlordSaurfang,
+]
+
+BarrensMiniSet_Cards = [
 		#Neutral
 		MeetingStone, DevouringEctoplasm, ArchdruidNaralex, MutanustheDevourer, SelflessSidekick,
 		#Demon Hunter
@@ -3892,6 +3923,8 @@ Barrens_Cards = [
 		#Warrior
 		ManatArms, WhetstoneHatchet, KreshLordofTurtling, TurtleSpike,
 ]
+
+Barrens_Cards += BarrensMiniSet_Cards
 
 Barrens_Cards_Collectible = [
 		#Neutral

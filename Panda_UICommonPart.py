@@ -6,7 +6,6 @@ from Parts_Game import *
 from Run_GenPools_BuildDecks import *
 from Panda_CustomWidgets import *
 
-from DB_CardInfos import Dict_TrigsDeaths
 
 
 w, h = 1440, 800
@@ -16,8 +15,11 @@ window-title Hearthstone Simulator
 clock-mode limited
 clock-frame-rate 45
 text-use-harfbuzz true
+framebuffer-multisample 1
+multisamples 2
 """
 
+#the last two lines are for antialiasing to work with multisample
 loadPrcFileData('', configVars)
 
 
@@ -33,8 +35,10 @@ pos_OffBoardTrig_1, pos_OffBoardTrig_2 =  (-10, -1.8, 10), (-10, 5, 10)
 class Panda_UICommon(ShowBase):
 	def __init__(self, disableMouse=True):
 		ShowBase.__init__(self)
-		self.cam.name, self.camera.name = "Model2Keep_Cam", "Model2Keep_Camera"
 		#simplepbr.init(max_lights=4)
+		self.render.setAntialias(AntialiasAttrib.MAuto) #All nodepaths under render to have antialiasing
+		#nodePath.setAntialias(AntialiasAttrib.MMultisample) #If you only want one nodepath to have antialiasing
+		self.cam.name, self.camera.name = "Model2Keep_Cam", "Model2Keep_Camera"
 		if disableMouse: self.disableMouse()
 		self.WAIT, self.FUNC = Wait, Func
 		self.SEQUENCE, self.PARALLEL  = Sequence, Parallel
@@ -987,8 +991,8 @@ class Panda_UICommon(ShowBase):
 				i += 1
 			for trig in card.trigsBoard + card.trigsHand + card.deathrattles:
 				if not trig.inherent:
-					card, s = Dict_TrigsDeaths[type(trig)]
-					self.showEnchantTrigDeathrattle(card, card.name+"\n"+s, i)
+					typeTrig = type(trig)
+					self.showEnchantTrigDeathrattle(typeTrig.cardType, typeTrig.cardType.name+"\n"+typeTrig.description, i)
 					i += 1
 
 	def showEnchantTrigDeathrattle(self, creator, text, i):

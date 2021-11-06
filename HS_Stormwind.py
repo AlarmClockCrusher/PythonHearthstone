@@ -1,4 +1,3 @@
-from Parts_ConstsFuncsImports import *
 from Parts_CardTypes import *
 from Parts_TrigsAuras import *
 
@@ -231,13 +230,13 @@ class Trig_LeatherworkingKit(Trig_Countdown):
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		if self.counter < 1:
 			self.resetCount()
-			card, mana, entersHand = self.keeper.drawCertainCard(lambda card: "Beast" in card.race)
-			if entersHand: self.keeper.giveEnchant(card, 1, 1, name=LeatherworkingKit, add2EventinGUI=False)
+			beast, mana, entersHand = self.keeper.drawCertainCard(lambda card: "Beast" in card.race)
+			if entersHand: self.keeper.giveEnchant(beast, 1, 1, name=LeatherworkingKit, add2EventinGUI=False)
 			self.keeper.losesDurability() #Assuming weapon always loses Durability
 
 
 class Trig_TavishsRam(TrigBoard):
-	signals = ("BattleStarted", "BattleFinished", )
+	signals, description = ("BattleStarted", "BattleFinished", ), "Immune while attacking"
 	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
 		return subject == self.keeper and self.keeper.onBoard
 
@@ -559,6 +558,7 @@ class Trig_Lothar(TrigBoard):
 
 class Trig_EdwinDefiasKingpin(TrigBoard):
 	signals = ("NewTurnStarts", "MinionBeenPlayed", "SpellBeenPlayed", "WeaponBeenPlayed", "HeroBeenPlayed")
+	description = "Play the card drawn to gain +2/+2 and repeat this effect"
 	def __init__(self, keeper, card=None):
 		super().__init__(keeper)
 		self.savedObj = card
@@ -607,16 +607,19 @@ class Trig_DefiasCannoneer(TrigBoard):
 
 """Deathrattles"""
 class Death_ElwynnBoar(Deathrattle_Minion):
+	description = "Deathrattle: If you had 7 Elwynn Boars die this game, equip a 15/3 Sword of a Thousand Truth"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		minion = self.keeper
 		if minion.Game.Counters.minionsDiedThisGame[minion.ID].count(ElwynnBoar) > 6:
 			minion.equipWeapon(SwordofaThousandTruth(minion.Game, minion.ID))
 
 class Death_MailboxDancer(Deathrattle_Minion):
+	description = "Deathrattle: Add a Coin to your opponent's hand"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.addCardtoHand(TheCoin, 3 - self.keeper.ID)
 
 class Death_EnthusiasticBanker(Deathrattle_Minion):
+	description = "Deathrattle: Add the stored cards to your hand"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		if self.savedObjs: self.keeper.addCardtoHand(self.savedObjs, self.keeper.ID)
 
@@ -628,46 +631,55 @@ class Death_EnthusiasticBanker(Deathrattle_Minion):
 	def assistCreateCopy(self, Copy):
 		Copy.cardsStored = [card.createCopy(Copy.Game) for card in self.savedObjs]
 
-
 class Death_StubbornSuspect(Deathrattle_Minion):
+	description = "Deathrattle: Summon a random 3-Cost minion"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.summon(numpyChoice(self.rngPool("3-Cost Minions to Summon"))(self.keeper.Game, self.keeper.ID))
 
 class Death_MoargForgefiend(Deathrattle_Minion):
+	description = "Deathrattle: Gain 8 Armor"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.giveHeroAttackArmor(self.keeper.ID, armor=8)
 
 class Death_PersistentPeddler(Deathrattle_Minion):
+	description = "Deathrattle: Summon a Persistent Peddler from your deck"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.try_SummonfromDeck(func=lambda card: card.name == "Persistent Peddler")
 		
 class Death_VibrantSquirrel(Deathrattle_Minion):
+	description = "Deathrattle: Shuffle 4 Acorns into your deck"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		minion = self.keeper
 		minion.shuffleintoDeck([Acorn(minion.Game, minion.ID) for _ in (0, 1, 2, 3)])
 
 class Death_Composting(Deathrattle_Minion):
+	description = "Deathrattle: Draw a card"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.Game.Hand_Deck.drawCard(self.keeper.ID)
 
 class Death_KodoMount(Deathrattle_Minion):
+	description = "Deathrattle: Summon a 4/2 Kodo"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.summon(GuffsKodo(self.keeper.Game, self.keeper.ID))
 
 class Death_RammingMount(Deathrattle_Minion):
+	description = "Deathrattle: Summon a 2/2 Ram"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.summon(TavishsRam(self.keeper.Game, self.keeper.ID))
 
 class Death_RodentNest(Deathrattle_Minion):
+	description = "Deathrattle: Summon five 1/1 Rats"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		minion = self.keeper
 		minion.summon([Rat(minion.Game, minion.ID) for i in range(5)])
 
 class Death_ImportedTarantula(Deathrattle_Minion):
+	description = "Deathrattle: Summon two 1/1 Spiders with Poisonous and Rush"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.summon([InvasiveSpiderling(self.keeper.Game, self.keeper.ID) for _ in (0, 1)], relative="<>")
 
 class Death_TheRatKing(Deathrattle_Minion):
+	description = "Deathrattle: Go dormant. Revive after 5 friendly minions die"
 	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
 		return target == self.keeper and self.keeper.Game.space(self.keeper.ID) > 0
 
@@ -681,40 +693,205 @@ class Death_TheRatKing(Deathrattle_Minion):
 			minion.Game.transform(minion, dormant)
 
 class Death_NobleMount(Deathrattle_Minion):
+	description = "Deathrattle: Summon a 1/1 Warhorse"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.summon(CarielsWarhorse(self.keeper.Game, self.keeper.ID))
 
 class Death_ElekkMount(Deathrattle_Minion):
+	description = "Deathrattle: Summon a 4/7 Elekk"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.summon(XyrellasElekk(self.keeper.Game, self.keeper.ID))
 
 class Death_HiddenGyroblade(Deathrattle_Weapon):
+	description = "Deathrattle: Throw this at a random enemy minion"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		minions = self.keeper.Game.minionsAlive(3 - self.keeper.ID)
 		if minions:
 			self.keeper.dealsDamage(numpyChoice(minions), number)
 
 class Death_LoanShark(Deathrattle_Minion):
+	description = "Deathrattle: Add two Coins to your hand"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.addCardtoHand([TheCoin, TheCoin], self.keeper.ID)
 
 class Death_TamsinsDreadsteed(Deathrattle_Minion):
+	description = "Deathrattle: At the end of the turn, summon Tamsin's Dreadsteed"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		TamsinsDreadsteed_Effect(self.keeper.Game, self.keeper.ID).connect()
 
 class Death_CowardlyGrunt(Deathrattle_Minion):
+	description = "Deathrattle: Summon a minion from your deck"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.try_SummonfromDeck()
 
 class Death_CookietheCook(Deathrattle_Minion):
+	description = "Deathrattle: Equip a 2/3 Stirring Rod with Lifesteal"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.equipWeapon(CookiesStirringRod(self.keeper.Game, self.keeper.ID))
 
 class Death_Hullbreaker(Deathrattle_Minion):
+	description = "Deathrattle: Draw a spell. Your hero takes damage equal to its Cost"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		if (mana := self.keeper.drawCertainCard(lambda card: card.category == "Spell")[1]) > 0:
 			self.keeper.Game.heroTakesDamage(self.keeper.ID, mana)
 		
+
+"""Game TrigEffects and game auras"""
+class SigilofAlacrity_Effect(TrigEffect):
+	trigType = "TurnStart&OnlyKeepOne"
+	def trigEffect(self):
+		card, mana, entersHand = self.Game.Hand_Deck.drawCard(self.ID)
+		if entersHand: ManaMod(card, by=-1).applies()
+
+class DemonslayerKurtrus_Effect(TrigEffect):
+	signals, counter, trigType = ("CardEntersHand",), 2, "Conn&TrigAura"
+	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
+		return target[0].ID == self.ID and comment == "byDrawing"
+
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		ManaMod(target[0], by=-self.counter).applies()
+
+class SheldrasMoontree_Effect(TrigEffect):
+	signals, counter, trigType = ("CardDrawn",), 3, "Conn&TrigAura&OnlyKeepOne"
+	def connect(self):
+		trigs = getListinDict(self.Game.trigsBoard[self.ID], "CardDrawn")
+		trig = next((trig for trig in trigs if isinstance(trig, SheldrasMoontree_Effect)), None)
+		if trig:
+			trig.counter = 3
+			if trig.card.btn: trig.card.btn.trigAni(trig.counter)
+		else:
+			trigs.append(self)
+			self.Game.trigAuras[self.ID].append(self)
+			if self.Game.GUI: self.Game.GUI.heroZones[self.ID].addaTrig(self.card, text='3')
+
+	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
+		return target[0].ID == self.ID
+
+	def trig(self, signal, ID, subject, target, number, comment, choice=0):
+		if self.canTrig(signal, ID, subject, target, number, comment):
+			if self.Game.GUI: self.Game.GUI.showOffBoardTrig(self.card)
+			self.effect(signal, ID, subject, target, number, comment)
+
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		self.counter -= 1
+		if self.card.btn: self.card.btn.trigAni(self.counter)
+		target[0].index += "Casts When Drawn"
+		if self.counter < 1: self.disconnect()
+
+
+class TavishMasterMarksman_Effect(TrigEffect):
+	signals, trigType = ("SpellBeenPlayed",), "Conn&TrigAura&OnlyKeepOne"
+	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
+		return subject.ID == self.ID
+
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		self.Game.powers[self.ID].usageCount = 0
+		self.Game.powers[self.ID].btn.checkHpr()
+
+
+class AimedShot_Effect(TrigEffect):
+	signals, counter, trigType = ("HeroUsedAbility",), 2, "Conn&TrigAura&OnlyKeepOne"
+	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
+		return subject.ID == self.ID
+
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		self.Game.powers[self.ID].losesEffect("Power Damage", amount=self.counter)
+		self.disconnect()
+
+
+class GameManaAura_HotStreak(GameManaAura_OneTime):
+	by = -2
+	def applicable(self, target): return target.ID == self.ID and target.school == "Fire"
+
+class PrestorsPyromancer_Effect(TrigEffect):
+	signals, counter, trigType = ("SpellBeenCast",), 2, "Conn&TrigAura&OnlyKeepOne"
+	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
+		return subject.ID == self.ID and subject.school == "Fire"
+
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		self.Game.heroes[self.ID].losesEffect("Fire Spell Damage", amount=self.counter)
+		self.disconnect()
+
+class ArcanistDawngrasp_Effect(TrigEffect):
+	counter, trigType = 3, "OnlyKeepOne" #For this effect, it is simply an indicator, no need for "Conn&TrigAura"
+
+class GameAura_LightbornCariel(GameAura_AlwaysOn):
+	attGain, healthGame, counter = 2, 2, 2
+	def applicable(self, target): return target.name == "Silver Hand Recruit"
+	def upgrade(self):
+		self.attGain = self.healthGain = self.counter = self.counter + 2
+		for receiver in self.receivers:
+			receiver.attGain, receiver.healthGain = self.attGain, self.healthGain
+			receiver.recipient.calcStat()
+		if self.counter and self.card.btn: self.card.btn.trigAni(self.counter)
+
+
+class SI7Skulker_Effect(TrigEffect):
+	signals, counter, trigType = ("CardEntersHand",), 1, "Conn"
+	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
+		return target[0].ID == self.ID and comment == "byDrawing"
+
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		ManaMod(target[0], by=-self.counter).applies()
+		self.disconnect()
+
+class StormcallerBrukan_Effect(TrigEffect):
+	trigType = "OnlyKeepOne" #For this effect, it is simply an indicator, no need for "Conn&TrigAura"
+
+class BlightbornTamsin_Effect(TrigEffect):
+	signals, trigType = ("DmgTaker?",), "Conn&TrigAura&OnlyKeepOne"
+	def __init__(self, Game, ID):
+		super().__init__(Game, ID)
+		self.on = True
+
+	# number here is a list that holds the damage to be processed
+	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
+		if comment == "Reset":  # Assume this can't trigger multiple times in a chain
+			self.on = True
+			return False
+		else: return target[0] == self.Game.heroes[self.ID] and target[0].onBoard and self.Game.turn == self.ID
+
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		target[0] = self.Game.heroes[3 - self.ID]
+		self.on = False
+
+	def assistCreateCopy(self, Copy):
+		Copy.on = self.on
+
+
+class TamsinsDreadsteed_Effect(TrigEffect):
+	counter, trigType = 1, "TurnEnd&OnlyKeepOne"
+	def trigEffect(self):
+		self.card.summon([TamsinsDreadsteed(self.Game, self.ID) for _ in range(self.counter)])
+
+
+class MoonlitGuidance_Effect(TrigEffect):
+	signals, trigType = ("MinionBeenPlayed", "SpellBeenPlayed", "WeaponBeenPlayed", "HeroBeenPlayed"), "Conn&TurnEnd"
+	def __init__(self, Game, ID, cards=()):
+		super().__init__(Game, ID)
+		self.savedObjs = cards  #tuple (Original card, copy)
+
+	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
+		return self.savedObjs and subject.ID == self.ID and subject == self.savedObjs[1]
+
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		if self.savedObjs[0] in (deck := self.Game.Hand_Deck.decks[self.ID]):
+			self.Game.Hand_Deck.drawCard(self.ID, deck.index(self.savedObjs[0]))
+		self.disconnect()
+
+	def assistCreateCopy(self, Copy):
+		Copy.savedObjs = tuple(card.createCopy(Copy.Game) for card in self.savedObjs)
+
+
+class Copycat_Effect(TrigEffect):
+	signals, trigType = ("MinionBeenPlayed", "SpellBeenPlayed", "WeaponBeenPlayed", "HeroBeenPlayed", ), "Conn&TrigAura"
+	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
+		return subject.ID != self.ID
+
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		self.card.addCardtoHand(type(subject), self.ID)
+		self.disconnect()
+
 
 """Cards"""
 """Neutral Cards"""
@@ -1444,8 +1621,8 @@ class Felgorger(Minion):
 	name_CN = "邪能吞食者"
 	
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		card, mana, entersHand = self.drawCertainCard(lambda card: card.school == "Fel")
-		if entersHand: ManaMod(card, by=-2).applies()
+		spell, mana, entersHand = self.drawCertainCard(lambda card: card.school == "Fel")
+		if entersHand: ManaMod(spell, by=-2).applies()
 	
 
 class PersistentPeddler(Minion):
@@ -1964,12 +2141,12 @@ class ReachthePortalRoom(Quest):
 	numNeeded, newQuest, reward = 3, None, ArcanistDawngrasp
 	race, trigBoard = "Questline", Trig_SorcerersGambit
 	def text(self):
-		trig = next((trig for trig in self.trigsBoard if isinstance(trig, Trig_SorcerersGambit)), None)
-		if trig and len(trig.savedObjs) < 3:
-			s = "Fire: %d\nFrost: %d\nArcane: %d"%(0 if "Fire" in trig.savedObj else 1,
-												   0 if "Frost" in trig.savedObj else 1,
-												   0 if "Arcane" in trig.savedObj else 1)
-			return s
+		if not self.inHand and "SpellBeenPlayed" in (trigs := self.Game.trigsBoard[self.ID]):
+			if (trig := next((trig for trig in trigs if isinstance(trig, Trig_SorcerersGambit)), None)) \
+				and len(trig.savedObjs) < 3:
+				return "Fire: %d\nFrost: %d\nArcane: %d"%(0 if "Fire" in trig.savedObj else 1,
+													   0 if "Frost" in trig.savedObj else 1,
+													   0 if "Arcane" in trig.savedObj else 1)
 		return ""
 
 class StallforTime(Quest):
@@ -2189,8 +2366,9 @@ class AvengetheFallen(Quest):
 	race, trigBoard = "Questline", Trig_RisetotheOccasion
 	def text(self):
 		s = ''
-		if trig := next((trig for trig in self.trigsBoard if isinstance(trig, Trig_RisetotheOccasion)), None):
-			for card in trig.savedObjs: s += card.__name__ + ' '
+		if not self.inHand and "MinionBeenPlayed" in (trigs := self.Game.trigsBoard[self.ID]):
+			if trig := next((trig for trig in trigs if isinstance(trig, Trig_RisetotheOccasion)), None):
+				for card in trig.savedObjs: s += card.__name__ + '\n'
 		return s
 
 class PavetheWay(Quest):
@@ -2365,9 +2543,10 @@ class IlluminatetheVoid(Quest):
 	numNeeded, newQuest, reward = 2, None, XyrellatheSanctified
 	race, trigBoard = "Questline", Trig_IlluminatetheVoid
 	def text(self):
-		trig = next((trig for trig in self.trigsBoard if isinstance(trig, Trig_IlluminatetheVoid)), None)
-		if trig and len(trig.savedObjs) < 2:
-			return "7: %d\n8: %d"%(0 if 7 in trig.savedObj else 1, 0 if 8 in trig.savedObj else 1)
+		if not self.inHand and "SpellBeenPlayed" in (trigs := self.Game.trigsBoard[self.ID]):
+			if (trig := next((trig for trig in trigs if isinstance(trig, Trig_IlluminatetheVoid)), None)) \
+					and len(trig.savedObjs) < 2:
+				return "7: %d\n8: %d"%(0 if 7 in trig.savedObj else 1, 0 if 8 in trig.savedObj else 1)
 		return ""
 
 class DiscovertheVoidShard(Quest):
@@ -2382,9 +2561,10 @@ class DiscovertheVoidShard(Quest):
 		self.discoverfromCardList(SeekGuidance, '')
 
 	def text(self):
-		trig = next((trig for trig in self.trigsBoard if isinstance(trig, Trig_DiscovertheVoidShard)), None)
-		if trig and len(trig.savedObjs) < 2:
-			return "5: %d\n6: %d"%(0 if 5 in trig.savedObj else 1, 0 if 6 in trig.savedObj else 1)
+		if not self.inHand and "SpellBeenPlayed" in (trigs := self.Game.trigsBoard[self.ID]):
+			if (trig := next((trig for trig in trigs if isinstance(trig, Trig_DiscovertheVoidShard)), None)) \
+					and len(trig.savedObjs) < 2:
+				return "5: %d\n6: %d" % (0 if 5 in trig.savedObj else 1, 0 if 6 in trig.savedObj else 1)
 		return ""
 
 class SeekGuidance(Quest):
@@ -2399,10 +2579,10 @@ class SeekGuidance(Quest):
 		self.discoverfromCardList(SeekGuidance, '')
 
 	def text(self):
-		trig = next((trig for trig in self.trigsBoard if isinstance(trig, Trig_DiscovertheVoidShard)), None)
-		if trig and len(trig.savedObjs) < 3:
-			return "2: %d\n3: %d\n4: %d"%(0 if 2 in trig.savedObj else 1,
-										  0 if 3 in trig.savedObj else 1,
+		if not self.inHand and "SpellBeenPlayed" in (trigs := self.Game.trigsBoard[self.ID]):
+			if (trig := next((trig for trig in trigs if isinstance(trig, Trig_SeekGuidance)), None)) \
+					and len(trig.savedObjs) < 3:
+				return "2: %d\n3: %d\n4: %d"%(0 if 2 in trig.savedObj else 1, 0 if 3 in trig.savedObj else 1,
 										  0 if 4 in trig.savedObj else 1)
 		return ""
 
@@ -2736,8 +2916,8 @@ class SketchyInformation(Spell):
 	description = "Draw a Deathrattle card that costs (4) or less. Trigger its effect"
 	name_CN = "简略情报"
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		if card := self.drawCertainCard(lambda card: hasattr(card, "deathrattles") and card.deathrattles and card.mana < 5)[0]:
-			for trig in card.deathrattles: trig.trig("TrigDeathrattle", self.ID, None, card, card.attack, "")
+		if drawnCard := self.drawCertainCard(lambda card: hasattr(card, "deathrattles") and card.deathrattles and card.mana < 5)[0]:
+			for trig in drawnCard.deathrattles: trig.trig("TrigDeathrattle", self.ID, None, drawnCard, drawnCard.attack, "")
 
 
 class SI7Informant(Minion):
@@ -3349,9 +3529,9 @@ class GolakkaGlutton(Minion):
 
 
 class Multicaster(Minion):
-	Class, race, name = "Neutral", "", "Multicaster"
+	Class, race, name = "Neutral", "Pirate", "Multicaster"
 	mana, attack, health = 4, 3, 4
-	index = "STORMWIND~Neutral~Minion~4~3~4~~Multicaster~Battlecry"
+	index = "STORMWIND~Neutral~Minion~4~3~4~Pirate~Multicaster~Battlecry"
 	requireTarget, effects, description = False, "", "Battlecry: Draw a card for each different spell school you've cast this game"
 	name_CN = "多系施法者"
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
@@ -3377,15 +3557,18 @@ class GoliathSneedsMasterpiece(Minion):
 	index = "STORMWIND~Neutral~Minion~8~8~8~Mech~Goliath, Sneed's Masterpiece~Battlecry~Legendary"
 	requireTarget, effects, description = False, "", "Battlecry: Fire five rockets at enemy minions that deal 2 damage each. (You pick the targets!)"
 	name_CN = "哥利亚，斯德尼的杰作"
+	#尽管随从自身不需要指向目标，但是需要targetCorrect，从而正确地选择场上的随从
+	def targetCorrect(self, target, choice=0):
+		return target.ID != self.ID and target.category == "Minion" and target.onBoard and target.health > 0 and not target.dead
+
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		for _ in (0, 1, 2, 3, 4):
-			if minions := self.Game.minionsAlive(3-self.ID):
+			if minions := GoliathSneedsMasterpiece.findTargets(self):
 				self.choosefromBoard(GoliathSneedsMasterpiece, comment, ls=minions)
 			else: break
 
 	def chooseDecided(self, option, case, ls):
-		self.handleChooseDecision(option, case, ls,
-								  func=lambda cardType, card: self.dealsDamage(card, 2))
+		self.handleChooseDecision(option, case, ls, func=lambda cardType, card: self.dealsDamage(card, 2))
 
 
 class MaddestBomber(Minion):
@@ -3504,10 +3687,10 @@ class JerryRigCarpenter(Minion):
 	name_CN = "应急木工"
 	#不知道是否会保留这个初始法术的费用效果，假设不保留
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		card, mana, entersHand = self.drawCertainCard(lambda card: card.category == "Spell" and type(card).options)
+		spell, mana, entersHand = self.drawCertainCard(lambda card: card.category == "Spell" and type(card).options)
 		if entersHand:
-			self.Game.Hand_Deck.extractfromHand(card, self.ID)
-			self.Game.Hand_Deck.addCardtoHand([option.spell for option in type(card).options], self.ID)
+			self.Game.Hand_Deck.extractfromHand(spell, self.ID)
+			self.Game.Hand_Deck.addCardtoHand([option.spell for option in type(spell).options], self.ID)
 
 
 class MoonlitGuidance(Spell):
@@ -3670,7 +3853,7 @@ class RighteousDefense(Spell):
 class SunwingSquawker(Minion):
 	Class, race, name = "Paladin", "Beast", "Sunwing Squawker"
 	mana, attack, health = 4, 3, 4
-	index = "STORMWIND~Paladin~Minion~4~3~4~Beast~Sunwing Parrot~Battlecry"
+	index = "STORMWIND~Paladin~Minion~4~3~4~Beast~Sunwing Squawker~Battlecry"
 	requireTarget, effects, description = False, "", "Battlecry: Repeat the last spell you've cast on a friendly minion on this"
 	name_CN = "金翼鹦鹉"
 	def effCanTrig(self):
@@ -3800,7 +3983,8 @@ class BrilliantMacaw(Minion):
 
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		if cards := [card for card in self.Game.Counters.cardsPlayedThisGame[self.ID] if "~Battlecry" in card.index]:
-			self.invokeBattlecry(cards[-1])
+			if (battlecryCard := cards[-1]) != BrilliantMacaw:
+				self.invokeBattlecry(cards[-1])
 
 
 class CookietheCook(Minion):
@@ -3914,197 +4098,56 @@ class DefiasCannoneer(Minion):
 	trigBoard = Trig_DefiasCannoneer
 
 
-class BlacksmithHammer(Weapon):
+class BlacksmithingHammer(Weapon):
 	Class, name, description = "Warrior", "Blacksmithing Hammer", "Tradeable. After you Trade this, gain +2 Durability"
 	mana, attack, durability, effects = 4, 5, 1, ""
 	index = "STORMWIND~Warrior~Weapon~4~5~1~Blacksmithing Hammer~Tradeable"
 	name_CN = "铁匠锤"
 	def tradeEffect(self):
-		self.getsBuffDebuff_inDeck(0, 2, source=type(self), name=BlacksmithHammer)
+		self.getsBuffDebuff_inDeck(0, 2, source=type(self), name=BlacksmithingHammer)
 
 
-"""Game TrigEffects and game auras"""
-class SigilofAlacrity_Effect(TrigEffect):
-	card, trigType = SigilofAlacrity, "TurnStart&OnlyKeepOne"
-	def trigEffect(self):
-		card, mana, entersHand = self.Game.Hand_Deck.drawCard(self.ID)
-		if entersHand: ManaMod(card, by=-1).applies()
+""""""
+Death_ElwynnBoar.cardType = ElwynnBoar
+Death_MailboxDancer.cardType = MailboxDancer
+Death_EnthusiasticBanker.cardType = EnthusiasticBanker
+Death_StubbornSuspect.cardType = StubbornSuspect
+Death_MoargForgefiend.cardType = MoargForgefiend
+Death_PersistentPeddler.cardType = PersistentPeddler
+Death_VibrantSquirrel.cardType = VibrantSquirrel
+Death_Composting.cardType = Composting
+Death_KodoMount.cardType = KodoMount
+Trig_TavishsRam.cardType = TavishsRam
+Death_RammingMount.cardType = RammingMount
+Death_ImportedTarantula.cardType = ImportedTarantula
+Death_TheRatKing.cardType = TheRatKing
+Death_RodentNest.cardType = RodentNest
+Death_NobleMount.cardType = NobleMount
+Death_ElekkMount.cardType = ElekkMount
+Death_HiddenGyroblade.cardType = HiddenGyroblade
+Death_LoanShark.cardType = LoanShark
+Death_TamsinsDreadsteed.cardType = TamsinsDreadsteed
+Death_CowardlyGrunt.cardType = CowardlyGrunt
+Trig_EdwinDefiasKingpin.cardType = EdwinDefiasKingpin
+Death_CookietheCook.cardType = CookietheCook
+Death_Hullbreaker.cardType = Hullbreaker
 
-class DemonslayerKurtrus_Effect(TrigEffect):
-	card, signals, counter, trigType = DemonslayerKurtrus, ("CardEntersHand",), 2, "Conn&TrigAura"
-	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
-		return target[0].ID == self.ID and comment == "byDrawing"
+SigilofAlacrity_Effect.cardType = SigilofAlacrity
+DemonslayerKurtrus_Effect.cardType = DemonslayerKurtrus
+SheldrasMoontree_Effect.cardType = SheldrasMoontree
+TavishMasterMarksman_Effect.cardType = TavishMasterMarksman
+AimedShot_Effect.cardType = AimedShot
+GameManaAura_HotStreak.cardType = HotStreak
+PrestorsPyromancer_Effect.cardType = PrestorsPyromancer
+ArcanistDawngrasp_Effect.cardType = ArcanistDawngrasp
+GameAura_LightbornCariel.cardType = LightbornCariel
+SI7Skulker_Effect.cardType = SI7Skulker
+StormcallerBrukan_Effect.cardType = StormcallerBrukan
+BlightbornTamsin_Effect.cardType = BlightbornTamsin
+TamsinsDreadsteed_Effect.cardType = TamsinsDreadsteed
+MoonlitGuidance_Effect.cardType = MoonlitGuidance
+Copycat_Effect.cardType = Copycat
 
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		ManaMod(target[0], by=-self.counter).applies()
-
-
-class SheldrasMoontree_Effect(TrigEffect):
-	card, signals, counter, trigType = SheldrasMoontree, ("CardDrawn",), 3, "Conn&TrigAura&OnlyKeepOne"
-	def connect(self):
-		trigs = getListinDict(self.Game.trigsBoard[self.ID], "CardDrawn")
-		trig = next((trig for trig in trigs if isinstance(trig, SheldrasMoontree_Effect)), None)
-		if trig:
-			trig.counter = 3
-			if trig.card.btn: trig.card.btn.trigAni(trig.counter)
-		else:
-			trigs.append(self)
-			self.Game.trigAuras[self.ID].append(self)
-			if self.Game.GUI: self.Game.GUI.heroZones[self.ID].addaTrig(self.card, text='3')
-
-	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
-		return target[0].ID == self.ID
-
-	def trig(self, signal, ID, subject, target, number, comment, choice=0):
-		if self.canTrig(signal, ID, subject, target, number, comment):
-			if self.Game.GUI: self.Game.GUI.showOffBoardTrig(self.card)
-			self.effect(signal, ID, subject, target, number, comment)
-
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.counter -= 1
-		if self.card.btn: self.card.btn.trigAni(self.counter)
-		target[0].index += "Casts When Drawn"
-		if self.counter < 1: self.disconnect()
-
-
-class TavishMasterMarksman_Effect(TrigEffect):
-	card, signals, trigType = TavishMasterMarksman, ("SpellBeenPlayed",), "Conn&TrigAura&OnlyKeepOne"
-	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
-		return subject.ID == self.ID
-
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.Game.powers[self.ID].usageCount = 0
-		self.Game.powers[self.ID].btn.checkHpr()
-
-
-class AimedShot_Effect(TrigEffect):
-	card, signals, counter, trigType = AimedShot, ("HeroUsedAbility",), 2, "Conn&TrigAura&OnlyKeepOne"
-	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
-		return subject.ID == self.ID
-
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.Game.powers[self.ID].losesEffect("Power Damage", amount=self.counter)
-		self.disconnect()
-
-
-class GameManaAura_HotStreak(GameManaAura_OneTime):
-	card, by = HotStreak, -2
-	def applicable(self, target): return target.ID == self.ID and target.school == "Fire"
-
-class PrestorsPyromancer_Effect(TrigEffect):
-	card, signals, counter, trigType = PrestorsPyromancer, ("SpellBeenCast",), 2, "Conn&TrigAura&OnlyKeepOne"
-	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
-		return subject.ID == self.ID and subject.school == "Fire"
-
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.Game.heroes[self.ID].losesEffect("Fire Spell Damage", amount=self.counter)
-		self.disconnect()
-
-class ArcanistDawngrasp_Effect(TrigEffect):
-	card, counter, trigType = ArcanistDawngrasp, 3, "OnlyKeepOne" #For this effect, it is simply an indicator, no need for "Conn&TrigAura"
-
-class GameAura_LightbornCariel(GameAura_AlwaysOn):
-	card, attGain, healthGame, counter = LightbornCariel, 2, 2, 2
-	def applicable(self, target): return target.name == "Silver Hand Recruit"
-	def upgrade(self):
-		self.attGain = self.healthGain = self.counter = self.counter + 2
-		for receiver in self.receivers:
-			receiver.attGain, receiver.healthGain = self.attGain, self.healthGain
-			receiver.recipient.calcStat()
-		if self.counter and self.card.btn: self.card.btn.trigAni(self.counter)
-
-
-class SI7Skulker_Effect(TrigEffect):
-	card, signals, counter, trigType = SI7Skulker, ("CardEntersHand",), 1, "Conn"
-	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
-		return target[0].ID == self.ID and comment == "byDrawing"
-
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		ManaMod(target[0], by=-self.counter).applies()
-		self.disconnect()
-
-class StormcallerBrukan_Effect(TrigEffect):
-	card, trigType = StormcallerBrukan, "OnlyKeepOne" #For this effect, it is simply an indicator, no need for "Conn&TrigAura"
-
-class BlightbornTamsin_Effect(TrigEffect):
-	card, signals, trigType = BlightbornTamsin, ("DmgTaker?",), "Conn&TrigAura&OnlyKeepOne"
-	def __init__(self, Game, ID):
-		super().__init__(Game, ID)
-		self.on = True
-
-	# number here is a list that holds the damage to be processed
-	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
-		if comment == "Reset":  # Assume this can't trigger multiple times in a chain
-			self.on = True
-			return False
-		else: return target[0] == self.Game.heroes[self.ID] and target[0].onBoard and self.Game.turn == self.ID
-
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		target[0] = self.Game.heroes[3 - self.ID]
-		self.on = False
-
-	def assistCreateCopy(self, Copy):
-		Copy.on = self.on
-
-
-class TamsinsDreadsteed_Effect(TrigEffect):
-	card, counter, trigType = TamsinsDreadsteed, 1, "TurnEnd&OnlyKeepOne"
-	def trigEffect(self):
-		self.card.summon([TamsinsDreadsteed(self.Game, self.ID) for i in range(self.counter)])
-
-
-class MoonlitGuidance_Effect(TrigEffect):
-	card, signals, trigType = MoonlitGuidance, ("MinionBeenPlayed", "SpellBeenPlayed", "WeaponBeenPlayed", "HeroBeenPlayed"), "Conn&TurnEnd"
-	def __init__(self, Game, ID, cards=()):
-		super().__init__(Game, ID)
-		self.savedObjs = cards  #tuple (Original card, copy)
-
-	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
-		return self.savedObjs and subject.ID == self.ID and subject == self.savedObjs[1]
-
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		if self.savedObjs[0] in (deck := self.Game.Hand_Deck.decks[self.ID]):
-			self.Game.Hand_Deck.drawCard(self.ID, deck.index(self.savedObjs[0]))
-		self.disconnect()
-
-	def assistCreateCopy(self, Copy):
-		Copy.savedObjs = tuple(card.createCopy(Copy.Game) for card in self.savedObjs)
-
-
-class Copycat_Effect(TrigEffect):
-	card, signals, trigType = Copycat, ("MinionBeenPlayed", "SpellBeenPlayed", "WeaponBeenPlayed", "HeroBeenPlayed", ), "Conn&TrigAura"
-	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
-		return subject.ID != self.ID
-
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.card.addCardtoHand(type(subject), self.ID)
-		self.disconnect()
-
-
-TrigsDeaths_Stormwind = {Death_ElwynnBoar: (ElwynnBoar, "Deathrattle: If you had 7 Elwynn Boars die this game, equip a 15/3 Sword of a Thousand Truth"),
-						Death_MailboxDancer: (MailboxDancer, "Deathrattle: Add a Coin to your opponent's hand"),
-						Death_EnthusiasticBanker: (EnthusiasticBanker, "Deathrattle: Add the stored cards to your hand"),
-						Death_StubbornSuspect: (StubbornSuspect, "Deathrattle: Summon a random 3-Cost minion"),
-						Death_MoargForgefiend: (MoargForgefiend, "Deathrattle: Gain 8 Armor"),
-						Death_PersistentPeddler: (PersistentPeddler, "Deathrattle: Summon a Persistent Peddler from your deck"),
-						Death_VibrantSquirrel: (VibrantSquirrel, "Deathrattle: Shuffle 4 Acorns into your deck"),
-						Death_Composting: (Composting, "Deathrattle: Draw a card"),
-						Death_KodoMount: (KodoMount, "Deathrattle: Summon a 4/2 Kodo"),
-						Trig_TavishsRam: (TavishsRam, "Immune while attacking"),
-						Death_RammingMount: (RammingMount, "Deathrattle: Summon a 2/2 Ram"),
-						Death_ImportedTarantula: (ImportedTarantula, "Deathrattle: Summon two 1/1 Spiders with Poisonous and Rush"),
-						Death_TheRatKing: (TheRatKing, "Deathrattle: Go dormant. Revive after 5 friendly minions die"),
-						Death_RodentNest: (RodentNest, "Deathrattle: Summon five 1/1 Rats"),
-						Death_NobleMount: (NobleMount, "Deathrattle: Summon a 1/1 Warhorse"),
-						Death_ElekkMount: (ElekkMount, "Deathrattle: Summon a 4/7 Elekk"),
-						Death_HiddenGyroblade: (HiddenGyroblade, "Deathrattle: Throw this at a random enemy minion"),
-						Death_LoanShark: (LoanShark, "Deathrattle: Add two Coins to your hand"),
-						Death_TamsinsDreadsteed: (TamsinsDreadsteed, "Deathrattle: At the end of the turn, summon Tamsin's Dreadsteed"),
-						Death_CowardlyGrunt: (CowardlyGrunt, "Deathrattle: Summon a minion from your deck"),
-						Trig_EdwinDefiasKingpin: (EdwinDefiasKingpin, "Play the card drawn to gain +2/+2 and repeat this effect"),
-						Death_CookietheCook: (CookietheCook, "Deathrattle: Equip a 2/3 Stirring Rod with Lifesteal"),
-						Death_Hullbreaker: (Hullbreaker, "Deathrattle: Draw a spell. Your hero takes damage equal to its Cost")
-						}
 
 Stormwind_Cards = [
 		#Neutral
@@ -4147,6 +4190,9 @@ Stormwind_Cards = [
 		#Warrior
 		Provoke, RaidtheDocks, CapnRokara, ShiverTheirTimbers, HarborScamp, CargoGuard, HeavyPlate, StormwindFreebooter,
 		RemoteControlledGolem, GolemParts, CowardlyGrunt, Lothar,
+]
+
+StormwinMiniSet_Cards = [
 		#Neutral
 		GolakkaGlutton, Multicaster, MaddestBomber, MrSmite, GoliathSneedsMasterpiece,
 		#Demon Hunter
@@ -4168,8 +4214,10 @@ Stormwind_Cards = [
 		#Warlock
 		ShadowbladeSlinger, WickedShipment, Hullbreaker,
 		#Warrior
-		MantheCannons, DefiasCannoneer, BlacksmithHammer,
+		MantheCannons, DefiasCannoneer, BlacksmithingHammer,
 ]
+
+Stormwind_Cards += StormwinMiniSet_Cards
 
 Stormwind_Cards_Collectible = [
 		#Neutral
@@ -4230,5 +4278,5 @@ Stormwind_Cards_Collectible = [
 		#Warlock
 		ShadowbladeSlinger, Hullbreaker, WickedShipment,
 		#Warrior
-		MantheCannons, DefiasCannoneer, BlacksmithHammer,
+		MantheCannons, DefiasCannoneer, BlacksmithingHammer,
 ]

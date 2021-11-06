@@ -1,4 +1,3 @@
-from Parts_ConstsFuncsImports import *
 from Parts_CardTypes import *
 from Parts_TrigsAuras import *
 
@@ -18,6 +17,157 @@ class ManaAura_YsielWindsinger(ManaAura):
 class ManaAura_KanrethadEbonlocke(ManaAura):
 	by = -1
 	def applicable(self, target): return target.ID == self.keeper.ID and "Demon" in target.race
+
+
+"""Deathrattles"""
+class Death_RustswornInitiate(Deathrattle_Minion):
+	description = "Deathrattle: Summon a 1/1 Impcaster with Spell Damage +1"
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		self.keeper.summon(Impcaster(self.keeper.Game, self.keeper.ID))
+
+class Death_TeronGorefiend(Deathrattle_Minion):
+	description = "Deathrattle: Resummon all destroyed minions with +1/+1"
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		keeper = self.keeper
+		if self.savedObjs:
+			keeper.AOE_GiveEnchant((minions := [minion(keeper.Game, keeper.ID) for minion in self.savedObjs]),
+								   1, 1, name=TeronGorefiend, add2EventinGUI=False)
+			keeper.summon(minions)
+
+	def selfCopy(self, recipient):
+		trig = type(self)(recipient)
+		trig.minionsDestroyed = self.savedObjs[:]
+		return trig
+
+	def assistCreateCopy(self, Copy):
+		Copy.savedObjs = self.savedObjs[:]
+
+class Death_DisguisedWanderer(Deathrattle_Minion):
+	description = "Deathrattle: Summon a 9/1 Inquisitor"
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		self.keeper.summon(RustswornInquisitor(self.keeper.Game, self.keeper.ID))
+
+class Death_RustswornCultist(Deathrattle_Minion):
+	description = "Deathrattle: Summon a 1/1 Demon"
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		self.keeper.summon(RustedDevil(self.keeper.Game, self.keeper.ID))
+
+class Death_Alar(Deathrattle_Minion):
+	description = "Deathrattle: Summon a 0/3 Ashes of Al'ar that resurrects this minion on your next turn"
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		self.keeper.summon(AshesofAlar(self.keeper.Game, self.keeper.ID))
+
+class Death_DragonmawSkyStalker(Deathrattle_Minion):
+	description = "Deathrattle: Summon a 3/4 Dragonrider"
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		self.keeper.summon(Dragonrider(self.keeper.Game, self.keeper.ID))
+
+class Death_ScrapyardColossus(Deathrattle_Minion):
+	description = "Deathrattle: Summon a 7/7 Felcracked Colossus with Taunt"
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		self.keeper.summon(FelcrackedColossus(self.keeper.Game, self.keeper.ID))
+
+class Death_FelSummoner(Deathrattle_Minion):
+	description = "Deathrattle: Summon a random Demon from your hand"
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		self.keeper.try_SummonfromHand(self.keeper.pos + 1, func=lambda card: "Demon" in card.race)
+
+class Death_CoilfangWarlord(Deathrattle_Minion):
+	description = "Deathrattle: Summon a 5/9 Warlord with Taunt"
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		self.keeper.summon(ConchguardWarlord(self.keeper.Game, self.keeper.ID))
+
+class Death_ArchsporeMsshifn(Deathrattle_Minion):
+	description = "Deathrattle: Shuffle 'Msshi'fn Prime' into your deck"
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		self.keeper.shuffleintoDeck(MsshifnPrime(self.keeper.Game, self.keeper.ID))
+
+class Death_Helboar(Deathrattle_Minion):
+	description = "Deathrattle: Give a random Beast in your hand +1/+1"
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		if beasts := [card for card in self.keeper.Game.Hand_Deck.hands[self.keeper.ID] \
+					  if "Beast" in card.race and card.mana > 0]:
+			self.keeper.giveEnchant(numpyChoice(beasts), 1, 1, name=Helboar, add2EventinGUI=False)
+
+class Death_AugmentedPorcupine(Deathrattle_Minion):
+	description = "Deathrattle: Deal this minion's Attack damage randomly split among all enemies"
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		minion, side = self.keeper, 3 - self.keeper.ID
+		for _ in range(number):
+			if minions := self.keeper.Game.charsAlive(side):
+				minion.dealsDamage(numpyChoice(minions), 1)
+			else: break
+
+class Death_ZixorApexPredator(Deathrattle_Minion):
+	description = "Deathrattle: Shuffle 'Zixor Prime' into your deck"
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		self.keeper.shuffleintoDeck(ZixorPrime(self.keeper.Game, self.keeper.ID))
+
+class Death_AstromancerSolarian(Deathrattle_Minion):
+	description = "Deathrattle: Shuffle 'Solarian Prime' into your deck"
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		self.keeper.shuffleintoDeck(SolarianPrime(self.keeper.Game, self.keeper.ID))
+
+class Death_Starscryer(Deathrattle_Minion):
+	description = "Deathrattle: Draw a spell"
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		self.keeper.drawCertainCard(lambda card: card.category == "Spell")
+
+class Death_MurgurMurgurgle(Deathrattle_Minion):
+	description = "Deathrattle: Shuffle 'Murgurgle Prime' into your deck"
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		self.keeper.shuffleintoDeck(MurgurglePrime(self.keeper.Game, self.keeper.ID))
+
+class Death_LibramofWisdom(Deathrattle_Minion):
+	description = "Deathrattle: 'Libram of Wisdom' spell to your hand'"
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		self.keeper.addCardtoHand(LibramofWisdom, self.keeper.ID)
+
+class Death_ReliquaryofSouls(Deathrattle_Minion):
+	description = "Deathrattle: Shuffle 'Reliquary Prime' into your deck"
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		self.keeper.shuffleintoDeck(ReliquaryPrime(self.keeper.Game, self.keeper.ID))
+
+class Death_Akama(Deathrattle_Minion):
+	description = "Deathrattle: Shuffle 'Akama Prime' into your deck"
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		self.keeper.shuffleintoDeck(AkamaPrime(self.keeper.Game, self.keeper.ID))
+
+class Death_CursedVagrant(Deathrattle_Minion):
+	description = "Deathrattle: Summon a 7/5 Shadow with Stealth"
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		self.keeper.summon(CursedShadow(self.keeper.Game, self.keeper.ID))
+
+class Death_LadyVashj(Deathrattle_Minion):
+	description = "Deathrattle: Shuffle 'Vashj Prime' into your deck"
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		self.keeper.shuffleintoDeck(VashjPrime(self.keeper.Game, self.keeper.ID))
+
+class Death_VividSpores(Deathrattle_Minion):
+	description = "Deathrattle: Resummon this minion'"
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		# This Deathrattle can't possibly be triggered in hand
+		self.keeper.summon(type(self.keeper)(self.keeper.Game, self.keeper.ID))
+
+class Death_KanrethadEbonlocke(Deathrattle_Minion):
+	description = "Deathrattle: Shuffle 'Kanrethad Prime' into your deck"
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		self.keeper.shuffleintoDeck(KanrethadPrime(self.keeper.Game, self.keeper.ID))
+
+class Death_EnhancedDreadlord(Deathrattle_Minion):
+	description = "Deathrattle: Summon a 5/5 Dreadlord with Lifesteal"
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		self.keeper.summon(DesperateDreadlord(self.keeper.Game, self.keeper.ID))
+
+class Death_KargathBladefist(Deathrattle_Minion):
+	description = "Deathrattle: Shuffle 'Kargath Prime' into your deck"
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		self.keeper.shuffleintoDeck(KargathPrime(self.keeper.Game, self.keeper.ID))
+
+class Death_ScrapGolem(Deathrattle_Minion):
+	description = "Deathrattle: Gain Armor equal to this minion's Attack"
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		self.keeper.giveHeroAttackArmor(self.keeper.ID, armor=number)
 
 
 """Trigs"""
@@ -153,7 +303,7 @@ class Trig_KaelthasSunstrider(Trig_Countdown):
 		if self.canTrig(signal, ID, subject, target, number, comment):
 			counter = self.counter
 			self.resetCount()
-			if counter != self.counter and (btn := self.keeper.btn) and "Hourglass" in btn.icons:
+			if counter != self.counter and (btn := self.keeper.btn):
 				btn.GUI.seqHolder[-1].append(btn.icons["Hourglass"].seqUpdateText())
 
 
@@ -233,7 +383,7 @@ class Trig_PackTactics(Trig_Secret):
 		
 
 class Trig_Evocation(TrigHand):
-	signals, changesCard = ("TurnEnds",), True
+	signals, changesCard, description = ("TurnEnds",), True, "At the end of your turn, discard this"
 	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
 		return self.keeper.inHand #They will be discarded at the end of any turn
 
@@ -401,133 +551,38 @@ class Trig_BloodboilBrute(TrigHand):
 		self.keeper.Game.Manas.calcMana_Single(self.keeper)
 
 
-"""Deathrattles"""
-class Death_RustswornInitiate(Deathrattle_Minion):
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.keeper.summon(Impcaster(self.keeper.Game, self.keeper.ID))
+"""Game TrigEffects and Game Auras"""
+class GameManaAura_KaelthasSunstrider(GameManaAura_OneTime):
+	to = 1
+	def __init__(self, Game, ID, keeper):
+		super().__init__(Game, ID)
+		self.keeper = keeper
 
-class Death_TeronGorefiend(Deathrattle_Minion):
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		keeper = self.keeper
-		if self.savedObjs:
-			keeper.AOE_GiveEnchant((minions := [minion(keeper.Game, keeper.ID) for minion in self.savedObjs]), 
-									1, 1, name=TeronGorefiend, add2EventinGUI=False)
-			keeper.summon(minions)
+	def applicable(self, target): return target.ID == self.ID and target.category == "Spell"
+	def auraDisappears(self):
+		super().auraDisappears()
+		removefrom(self, self.keeper.auras)
+		self.keeper.btn.effectChangeAni("Aura")
 
-	def selfCopy(self, recipient):
-		trig = type(self)(recipient)
-		trig.minionsDestroyed = self.savedObjs[:]
-		return trig
-
-	def assistCreateCopy(self, Copy):
-		Copy.savedObjs = self.savedObjs[:]
-
-
-class Death_DisguisedWanderer(Deathrattle_Minion):
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.keeper.summon(RustswornInquisitor(self.keeper.Game, self.keeper.ID))
-
-class Death_RustswornCultist(Deathrattle_Minion):
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		# This Deathrattle can't possibly be triggered in hand
-		self.keeper.summon(RustedDevil(self.keeper.Game, self.keeper.ID))
+	def createCopy(self, game):
+		if self not in game.copiedObjs:  # 这个光环没有被复制过
+			game.copiedObjs[self] = auraCopy = type(self)(game, self.ID, None)
+			auraCopy.keeper = self.keeper.createCopy(game)
+			for receiver in self.receivers:
+				auraCopy.receivers.append((receiverCopy := receiver.createCopy(game, auraCopy)))
+				receiverCopy.recipient = receiver.recipient.createCopy(game)
+			return auraCopy
+		else: return game.copiedObjs[self]
 
 
-class Death_Alar(Deathrattle_Minion):
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.keeper.summon(AshesofAlar(self.keeper.Game, self.keeper.ID))
+class GameManaAura_AldorAttendant(GameManaAura_OneTime):
+	signals, by, temporary = ("CardEntersHand",), -1, False
+	def applicable(self, target): return target.ID == self.ID and "Libram of " in target.name
 
-class Death_DragonmawSkyStalker(Deathrattle_Minion):
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.keeper.summon(Dragonrider(self.keeper.Game, self.keeper.ID))
+class GameManaAura_AldorTruthseeker(GameManaAura_OneTime):
+	signals, by, temporary = ("CardEntersHand",), -2, False
+	def applicable(self, target): return target.ID == self.ID and "Libram of " in target.name
 
-class Death_ScrapyardColossus(Deathrattle_Minion):
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.keeper.summon(FelcrackedColossus(self.keeper.Game, self.keeper.ID))
-
-class Death_FelSummoner(Deathrattle_Minion):
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.keeper.try_SummonfromHand(self.keeper.pos + 1, func=lambda card: "Demon" in card.race)
-		
-class Death_CoilfangWarlord(Deathrattle_Minion):
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.keeper.summon(ConchguardWarlord(self.keeper.Game, self.keeper.ID))
-
-
-class Death_ArchsporeMsshifn(Deathrattle_Minion):
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.keeper.shuffleintoDeck(MsshifnPrime(self.keeper.Game, self.keeper.ID))
-
-class Death_Helboar(Deathrattle_Minion):
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		if beasts := [card for card in self.keeper.Game.Hand_Deck.hands[self.keeper.ID] \
-					  if "Beast" in card.race and card.mana > 0]:
-			self.keeper.giveEnchant(numpyChoice(beasts), 1, 1, name=Helboar, add2EventinGUI=False)
-
-class Death_AugmentedPorcupine(Deathrattle_Minion):
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		minion, side = self.keeper, 3 - self.keeper.ID
-		for _ in range(number):
-			if minions := self.keeper.Game.charsAlive(side): minion.dealsDamage(numpyChoice(minions), 1)
-			else: break
-
-class Death_ZixorApexPredator(Deathrattle_Minion):
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.keeper.shuffleintoDeck(ZixorPrime(self.keeper.Game, self.keeper.ID))
-		
-class Death_AstromancerSolarian(Deathrattle_Minion):
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.keeper.shuffleintoDeck(SolarianPrime(self.keeper.Game, self.keeper.ID))
-		
-class Death_Starscryer(Deathrattle_Minion):
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.keeper.drawCertainCard(lambda card: card.category == "Spell")
-		
-class Death_MurgurMurgurgle(Deathrattle_Minion):
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.keeper.shuffleintoDeck(MurgurglePrime(self.keeper.Game, self.keeper.ID))
-		
-class Death_LibramofWisdom(Deathrattle_Minion):
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.keeper.addCardtoHand(LibramofWisdom, self.keeper.ID)
-
-class Death_ReliquaryofSouls(Deathrattle_Minion):
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.keeper.shuffleintoDeck(ReliquaryPrime(self.keeper.Game, self.keeper.ID))
-
-class Death_Akama(Deathrattle_Minion):
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.keeper.shuffleintoDeck(AkamaPrime(self.keeper.Game, self.keeper.ID))
-		
-class Death_CursedVagrant(Deathrattle_Minion):
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.keeper.summon(CursedShadow(self.keeper.Game, self.keeper.ID))
-
-class Death_LadyVashj(Deathrattle_Minion):
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.keeper.shuffleintoDeck(VashjPrime(self.keeper.Game, self.keeper.ID))
-
-class Death_VividSpores(Deathrattle_Minion):
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		# This Deathrattle can't possibly be triggered in hand
-		self.keeper.summon(type(self.keeper)(self.keeper.Game, self.keeper.ID))
-
-class Death_KanrethadEbonlocke(Deathrattle_Minion):
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.keeper.shuffleintoDeck(KanrethadPrime(self.keeper.Game, self.keeper.ID))
-		
-class Death_EnhancedDreadlord(Deathrattle_Minion):
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.keeper.summon(DesperateDreadlord(self.keeper.Game, self.keeper.ID))
-
-class Death_KargathBladefist(Deathrattle_Minion):
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.keeper.shuffleintoDeck(KargathPrime(self.keeper.Game, self.keeper.ID))
-		
-class Death_ScrapGolem(Deathrattle_Minion):
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.keeper.giveHeroAttackArmor(self.keeper.ID, armor=number)
-		
 
 """Neutral Cards"""
 #休眠的随从在打出之后2回合本来时会触发你“召唤一张随从”
@@ -1465,8 +1520,8 @@ class ScavengersIngenuity(Spell):
 	description = "Draw a Beast. Give it +2/+2"
 	name_CN = "拾荒者的智慧"
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		card, mana, entersHand = self.drawCertainCard(lambda card: "Beast" in card.race)
-		if entersHand: self.giveEnchant(card, 2, 2, name=ScavengersIngenuity, add2EventinGUI=False)
+		beast, mana, entersHand = self.drawCertainCard(lambda card: "Beast" in card.race)
+		if entersHand: self.giveEnchant(beast, 2, 2, name=ScavengersIngenuity, add2EventinGUI=False)
 		
 		
 class AugmentedPorcupine(Minion):
@@ -2178,8 +2233,8 @@ class ShadowjewelerHanar(Minion):
 		return classes, lists
 
 	def decidePools(self, Class2Exclude):
-		Classes = (Class for Class in ("Hunter", "Mage", "Paladin", "Rogue") if Class != Class2Exclude)
-		return [self.rngPool(Class + " Secrets") for Class in Classes]
+		classes = (Class for Class in ("Hunter", "Mage", "Paladin", "Rogue") if Class != Class2Exclude)
+		return [self.rngPool(Class + " Secrets") for Class in classes]
 
 
 class Akama(Minion):
@@ -2282,9 +2337,9 @@ class VashjPrime(Minion):
 	
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		for _ in (0, 1, 2):
-			card, mana, entersHand = self.drawCertainCard(lambda card: card.category == "Spell")
-			if not card: break
-			elif entersHand: ManaMod(card, by=-3).applies()
+			spell, mana, entersHand = self.drawCertainCard(lambda card: card.category == "Spell")
+			if not spell: break
+			elif entersHand: ManaMod(spell, by=-3).applies()
 		
 		
 class Marshspawn(Minion):
@@ -2560,8 +2615,8 @@ class TheDarkPortal(Spell):
 		self.effectViable = len(self.Game.Hand_Deck.hands[self.ID]) > 7
 		
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		card, mana, entersHand = self.drawCertainCard(lambda card: card.category == "Minion")
-		if entersHand and len(self.Game.Hand_Deck.hands[self.ID]) > 7: ManaMod(card, by=-5).applies()
+		minion, mana, entersHand = self.drawCertainCard(lambda card: card.category == "Minion")
+		if entersHand and len(self.Game.Hand_Deck.hands[self.ID]) > 7: ManaMod(minion, by=-5).applies()
 		
 		
 class HandofGuldan(Spell):
@@ -2656,10 +2711,9 @@ class CorsairCache(Spell):
 	index = "BLACK_TEMPLE~Warrior~Spell~2~~Corsair Cache"
 	description = "Draw a weapon. Give it +1 Durability"
 	name_CN = "海盗藏品"
-	
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		card, mana, entersHand = self.drawCertainCard(lambda card: card.category == "Weapon")
-		if entersHand: self.giveEnchant(card, 0, 1, name=CorsairCache)
+		weapon, mana, entersHand = self.drawCertainCard(lambda card: card.category == "Weapon")
+		if entersHand: self.giveEnchant(weapon, 0, 1, name=CorsairCache)
 		
 		
 class Bladestorm(Spell):
@@ -2765,67 +2819,39 @@ class BloodboilBrute(Minion):
 			self.mana = max(0, self.mana)
 			
 
-"""Game TrigEffects and Game Auras"""
-class GameManaAura_KaelthasSunstrider(GameManaAura_OneTime):
-	card, to = KaelthasSunstrider, 1
-	def __init__(self, Game, ID, keeper):
-		super().__init__(Game, ID)
-		self.keeper = keeper
+""""""
+Death_RustswornInitiate.cardType = RustswornInitiate
+Death_TeronGorefiend.cardType = TeronGorefiend
+Death_DisguisedWanderer.cardType = DisguisedWanderer
+Death_RustswornCultist.cardType = RustswornCultist
+Death_Alar.cardType = Alar
+Death_DragonmawSkyStalker.cardType = DragonmawSkyStalker
+Death_ScrapyardColossus.cardType = ScrapyardColossus
+Death_FelSummoner.cardType = FelSummoner
+Death_CoilfangWarlord.cardType = CoilfangWarlord
+Death_ArchsporeMsshifn.cardType = ArchsporeMsshifn
+Death_AugmentedPorcupine.cardType = AugmentedPorcupine
+Death_ZixorApexPredator.cardType = ZixorApexPredator
+Death_AstromancerSolarian.cardType = AstromancerSolarian
+Death_Starscryer.cardType = Starscryer
+Death_LibramofWisdom.cardType = LibramofWisdom
+Death_MurgurMurgurgle.cardType = MurgurMurgurgle
+Death_ReliquaryofSouls.cardType = ReliquaryofSouls
+Death_Akama.cardType = Akama
+Death_CursedVagrant.cardType = CursedVagrant
+Death_LadyVashj.cardType = LadyVashj
+Death_VividSpores.cardType = VividSpores
+Death_KanrethadEbonlocke.cardType = KanrethadEbonlocke
+Death_EnhancedDreadlord.cardType = EnhancedDreadlord
+Death_KargathBladefist.cardType = KargathBladefist
+Death_ScrapGolem.cardType = ScrapGolem
+Trig_Evocation.cardType = Evocation
 
-	def applicable(self, target): return target.ID == self.ID and target.category == "Spell"
-	def auraDisappears(self):
-		super().auraDisappears()
-		removefrom(self, self.keeper.auras)
-		self.keeper.btn.effectChangeAni("Aura")
-
-	def createCopy(self, game):
-		if self not in game.copiedObjs:  # 这个光环没有被复制过
-			game.copiedObjs[self] = auraCopy = type(self)(game, self.ID, None)
-			auraCopy.keeper = self.keeper.createCopy(game)
-			for receiver in self.receivers:
-				auraCopy.receivers.append((receiverCopy := receiver.createCopy(game, auraCopy)))
-				receiverCopy.recipient = receiver.recipient.createCopy(game)
-			return auraCopy
-		else: return game.copiedObjs[self]
+GameManaAura_KaelthasSunstrider.cardType = KaelthasSunstrider
+GameManaAura_AldorAttendant.cardType = AldorAttendant
+GameManaAura_AldorTruthseeker.cardType = AldorTruthseeker
 
 
-class GameManaAura_AldorAttendant(GameManaAura_OneTime):
-	card, signals, by, temporary = AldorAttendant, ("CardEntersHand",), -1, False
-	def applicable(self, target): return target.ID == self.ID and "Libram of " in target.name
-
-class GameManaAura_AldorTruthseeker(GameManaAura_OneTime):
-	card, signals, by, temporary = AldorTruthseeker, ("CardEntersHand",), -2, False
-	def applicable(self, target): return target.ID == self.ID and "Libram of " in target.name
-
-
-TrigsDeaths_Outlands = {Death_RustswornInitiate: (RustswornInitiate, "Deathrattle: Summon a 1/1 Impcaster with Spell Damage +1"),
-						Death_TeronGorefiend: (TeronGorefiend, "Deathrattle: Resummon all destroyed minions with +1/+1"),
-						Death_DisguisedWanderer: (DisguisedWanderer, "Deathrattle: Summon a 9/1 Inquisitor"),
-						Death_RustswornCultist: (RustswornCultist, "Deathrattle: Summon a 1/1 Demon"),
-						Death_Alar: (Alar, "Deathrattle: Summon a 0/3 Ashes of Al'ar that resurrects this minion on your next turn"),
-						Death_DragonmawSkyStalker: (DragonmawSkyStalker, "Deathrattle: Summon a 3/4 Dragonrider"),
-						Death_ScrapyardColossus: (ScrapyardColossus, "Deathrattle: Summon a 7/7 Felcracked Colossus with Taunt"),
-						Death_FelSummoner: (FelSummoner, "Deathrattle: Summon a random Demon from your hand"),
-						Death_CoilfangWarlord: (CoilfangWarlord, "Deathrattle: Summon a 5/9 Warlord with Taunt"),
-						Death_ArchsporeMsshifn: (ArchsporeMsshifn, "Deathrattle: Shuffle 'Msshi'fn Prime' into your deck"),
-						Death_Helboar: (Helboar, "Deathrattle: Give a random Beast in your hand +1/+1"),
-						Death_AugmentedPorcupine: (AugmentedPorcupine, "Deathrattle: Deal this minion's Attack damage randomly split among all enemies"),
-						Death_ZixorApexPredator: (ZixorApexPredator, "Deathrattle: Shuffle 'Zixor Prime' into your deck"),
-						Trig_Evocation: (Evocation, "At the end of your turn, discard this"),
-						Death_AstromancerSolarian: (AstromancerSolarian, "Deathrattle: Shuffle 'Solarian Prime' into your deck"),
-						Death_Starscryer: (Starscryer, "Deathrattle: Draw a spell"),
-						Death_LibramofWisdom: (LibramofWisdom, "Deathrattle: 'Libram of Wisdom' spell to your hand'"),
-						Death_MurgurMurgurgle: (MurgurMurgurgle, "Deathrattle: Shuffle 'Murgurgle Prime' into your deck"),
-						Death_ReliquaryofSouls: (ReliquaryofSouls, "Deathrattle: Shuffle 'Reliquary Prime' into your deck"),
-						Death_Akama: (Akama, "Deathrattle: Shuffle 'Akama Prime' into your deck"),
-						Death_CursedVagrant: (CursedVagrant, "Deathrattle: Summon a 7/5 Shadow with Stealth"),
-						Death_LadyVashj: (LadyVashj, "Deathrattle: Shuffle 'Vashj Prime' into your deck"),
-						Death_VividSpores: (VividSpores, "Deathrattle: Resummon this minion'"),
-						Death_KanrethadEbonlocke: (KanrethadEbonlocke, "Deathrattle: Shuffle 'Kanrethad Prime' into your deck"),
-						Death_EnhancedDreadlord: (EnhancedDreadlord, "Deathrattle: Summon a 5/5 Dreadlord with Lifesteal"),
-						Death_KargathBladefist: (KargathBladefist, "Deathrattle: Shuffle 'Kargath Prime' into your deck"),
-						Death_ScrapGolem: (ScrapGolem, "Deathrattle: Gain Armor equal to this minion's Attack"),
-						}
 
 Outlands_Cards = [
 		#Neutral

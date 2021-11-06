@@ -1,4 +1,3 @@
-from Parts_ConstsFuncsImports import *
 from Parts_CardTypes import *
 from Parts_TrigsAuras import *
 
@@ -8,10 +7,12 @@ from HS_Shadows import Twinspell
 
 """Deathrattles"""
 class Death_Skyvateer(Deathrattle_Minion):
+	description = "Deathrattle: Draw a card"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.Game.Hand_Deck.drawCard(self.keeper.ID)
 
 class Death_FiendishServant(Deathrattle_Minion):
+	description = "Deathrattle: Give this minion's Attack to a random friendly minion"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		if minions := self.keeper.Game.minionsonBoard(self.keeper.ID):
 			self.keeper.giveEnchant(numpyChoice(minions), number, 0, name=FiendishServant)
@@ -123,8 +124,14 @@ class Trig_BombWrangler(TrigBoard):
 
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.summon(BoomBot(self.keeper.Game, self.keeper.ID))
-		
-				
+
+
+"""Game TrigEffects and Game Aura"""
+class GameManaAura_BoompistolBully(GameManaAura_OneTime):
+	signals, by, nextTurn = ("CardEntersHand",), +5, True
+	def applicable(self, subject): return subject.ID == self.ID and "~Battlecry" in subject.index
+
+
 class SkydivingInstructor(Minion):
 	Class, race, name = "Neutral", "", "Skydiving Instructor"
 	mana, attack, health = 3, 2, 2
@@ -741,12 +748,12 @@ class BombWrangler(Minion):
 	trigBoard = Trig_BombWrangler		
 
 
-"""Game TrigEffects and Game Aura"""
-class GameManaAura_BoompistolBully(GameManaAura_OneTime):
-	card, signals, by, nextTurn = BoompistolBully, ("CardEntersHand",), +5, True
-	def applicable(self, subject): return subject.ID == self.ID and "~Battlecry" in subject.index
-	
-	
+
+Death_Skyvateer.cardType = Skyvateer
+Death_FiendishServant.cardType = FiendishServant
+
+GameManaAura_BoompistolBully.cardType = BoompistolBully
+
 Galakrond_Cards = [
 		#Neutral
 		SkydivingInstructor, Hailbringer, IceShard, LicensedAdventurer, FrenziedFelwing, EscapedManasaber, BoompistolBully,
@@ -794,8 +801,3 @@ Galakrond_Cards_Collectible = [
 		#Warrior
 		BoomSquad, RiskySkipper, BombWrangler,
 ]
-
-
-TrigDeaths_Galakrond = {Death_Skyvateer: (Skyvateer, "Deathrattle: Draw a card"),
-						Death_FiendishServant: (FiendishServant, "Deathrattle: Give this minion's Attack to a random friendly minion"),
-						}

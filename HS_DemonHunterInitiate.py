@@ -1,4 +1,3 @@
-from Parts_ConstsFuncsImports import numpyChoice
 from Parts_CardTypes import *
 from Parts_TrigsAuras import *
 
@@ -7,6 +6,7 @@ from HS_AcrossPacks import IllidariInitiate
 
 """Deathrattles"""
 class Death_UrzulHorror(Deathrattle_Minion):
+	description = "Deathrattle: Add a 2/1 Lost Soul to your hand"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.addCardtoHand(LostSoul, self.keeper.ID)
 
@@ -77,7 +77,22 @@ class Trig_Nethrandamus(TrigHand):
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.progress += 1
 		
-		
+
+"""Game TrigEffects and Game Auras"""
+class Blur_Effect(TrigEffect):
+	signals, trigType = ("FinalDmgonHero?",), "Conn&TurnEnd&OnlyKeepOne"
+	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
+		return target.ID == self.ID and target.onBoard
+
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		number[0] = 0
+
+class ManaBurn_Effect(TrigEffect):
+	counter, trigType = 2, "TurnStart&OnlyKeepOne"
+	def trigEffect(self): self.Game.Manas.manas_withheld[self.ID] -= self.counter
+
+
+"""Cards"""
 class Blur(Spell):
 	Class, school, name = "Demon Hunter", "", "Blur"
 	requireTarget, mana, effects = False, 0, ""
@@ -352,22 +367,12 @@ class Nethrandamus(Minion):
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		self.summon([self.newEvolved(self.progress-1, by=1, ID=self.ID) for _ in (0, 1)], relative="<>")
 		
-	
-"""Game TrigEffects and Game Auras"""
-class Blur_Effect(TrigEffect):
-	card, signals, trigType = Blur, ("FinalDmgonHero?",), "Conn&TurnEnd&OnlyKeepOne"
-	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
-		return target.ID == self.ID and target.onBoard
 
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		number[0] = 0
 
-class ManaBurn_Effect(TrigEffect):
-	card, counter, trigType = ManaBurn, 2, "TurnStart&OnlyKeepOne"
-	def trigEffect(self): self.Game.Manas.manas_withheld[self.ID] -= self.counter
+Death_UrzulHorror.cardType = UrzulHorror
+Blur_Effect.cardType = Blur
+ManaBurn_Effect.cardType = ManaBurn
 
 
 DemonHunterInit_Cards = []
 
-TrigDeaths_DemonHunterInitiate = {Death_UrzulHorror: (UrzulHorror, "Deathrattle: Add a 2/1 Lost Soul to your hand"),
-								}

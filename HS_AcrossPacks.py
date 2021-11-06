@@ -1,4 +1,3 @@
-from Parts_ConstsFuncsImports import *
 from Parts_CardTypes import *
 from Parts_TrigsAuras import *
 
@@ -19,6 +18,13 @@ def panda_ShootArrow(GUI, power, target):
 """Auras"""
 class Aura_Leokk(Aura_AlwaysOn):
 	attGain = 1
+
+"""Deathrattles"""
+class Death_BoomBot(Deathrattle_Minion):
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		if objs := self.keeper.Game.charsAlive(3 - self.keeper.ID):
+			self.keeper.dealsDamage(numpyChoice(objs), numpyRandint(1, 5))
+
 
 """Trigs"""
 class Trig_HealingTotem(TrigBoard):
@@ -84,13 +90,6 @@ class Trig_ManaWyrm(TrigBoard):
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.giveEnchant(self.keeper, statEnchant=Enchantment_Cumulative(1, 0, name=ManaWyrm))
 
-
-"""Deathrattles"""
-class Death_BoomBot(Deathrattle_Minion):
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		if objs := self.keeper.Game.charsAlive(3 - self.keeper.ID):
-			self.keeper.dealsDamage(numpyChoice(objs), numpyRandint(1, 5))
-		
 
 """Cards"""
 class TheCoin(Spell):
@@ -1239,6 +1238,16 @@ Adventurers = [DeadlyAdventurer, BurlyAdventurer, DevoutAdventurer, RelentlessAd
 			   ArcaneAdventurer, SneakyAdventurer, VitalAdventurer, SwiftAdventurer]
 
 
+"""Assign effOwner_Type"""
+Death_BoomBot.cardType = BoomBot
+Death_BoomBot.description = "Deathrattle: Deal 1~4 damage to a random enemy"
+Trig_Nightmare_1.cardType = Nightmare
+Trig_Nightmare_1.description = "Die at the start of player 1's turn"
+Trig_Nightmare_2.cardType = Nightmare
+Trig_Nightmare_2.description = "Die at the start of player 2's turn"
+
+
+
 AcrossPacks_Cards = [
 	TheCoin, SilverHandRecruit, WickedKnife, PoisonedDagger, SearingTotem, StoneclawTotem, HealingTotem, StrengthTotem,
 	DemonClaws, DemonsBite, Shapeshift, DireShapeshift, SteadyShot, BallistaShot, Fireblast, FireblastRank2, Reinforce,
@@ -1266,8 +1275,3 @@ AcrossPacks_Cards_Collectible = [
 		#Heroes
 		Illidan, Rexxar, Valeera, Malfurion, Garrosh, Uther, Thrall, Jaina, Anduin, Guldan,
 ]
-
-TrigsDeaths_AcrossPacks = {Death_BoomBot: (BoomBot, "Deathrattle: Deal 1~4 damage to a random enemy"),
-							Trig_Nightmare_1: (Nightmare, "Die at the start of player 1's turn"),
-							Trig_Nightmare_2: (Nightmare, "Die at the start of player 2's turn"),
-							}

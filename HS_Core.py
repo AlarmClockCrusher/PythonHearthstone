@@ -1,4 +1,3 @@
-from Parts_ConstsFuncsImports import *
 from Parts_CardTypes import *
 from Parts_TrigsAuras import *
 
@@ -12,19 +11,6 @@ from HS_AcrossPacks import TheCoin, SilverHandRecruit, LeaderofthePack, SummonaP
 
 
 """Auras"""
-class Aura_Cogmaster(Aura_Conditional):
-	signals, attGain, targets = ("MinionAppears", "MinionDisappears"), 2, "Self"
-	def whichWay(self): #Decide the aura turns on(1) or off(-1), or does nothing(0)
-		hasMech = any("Mech" in obj.race for obj in self.keeper.Game.minionsonBoard(self.keeper.ID))
-		if not hasMech and self.on: return -1
-		elif hasMech and not self.on: return 1
-		else: return 0
-
-	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
-		obj = subject if signal == "MinionAppears" else target
-		return self.keeper.onBoard and obj.ID == self.keeper.ID and "Mech" in obj.race
-
-
 class Aura_DireWolfAlpha(Aura_AlwaysOn):
 	attGain, targets = 1, "Neighbors"
 
@@ -63,66 +49,81 @@ class Aura_WarhorseTrainer(Aura_AlwaysOn):
 
 """Deathrattles"""
 class Death_BloodmageThalnos(Deathrattle_Minion):
+	description = "Deathrattle: Draw a card"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.Game.Hand_Deck.drawCard(self.keeper.ID)
 
 class Death_ExplosiveSheep(Deathrattle_Minion):
+	description = "Deathrattle: Deal 2 damage to all minions"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		targets = self.keeper.Game.minionsonBoard(1) + self.keeper.Game.minionsonBoard(2)
 		self.keeper.AOE_Damage(targets, [2] * len(targets))
 
 class Death_LootHoarder(Deathrattle_Minion):
+	description = "Deathrattle: Draw a card"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.Game.Hand_Deck.drawCard(self.keeper.ID)
 
 class Death_NerubianEgg(Deathrattle_Minion):
+	description = "Deathrattle: Summon a 4/4 Nerubian"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.summon(Nerubian(self.keeper.Game, self.keeper.ID))
 
 class Death_TaelanFordring(Deathrattle_Minion):
+	description = "Deathrattle: Draw your hightest-Cost minion"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		if indices := pickHighestCostIndices(self.keeper.Game.Hand_Deck.decks[self.keeper.ID],
 											 func=lambda card: card.category == "Minion"):
 			self.keeper.Game.Hand_Deck.drawCard(self.keeper.ID, numpyChoice(indices))
 
 class Death_CairneBloodhoof(Deathrattle_Minion):
+	description = "Deathrattle: Summon a 4/5 Baine Bloodhoof"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.summon(BaineBloodhoof(self.keeper.Game, self.keeper.ID))
 
 class Death_SouloftheForest(Deathrattle_Minion):
+	description = "Deathrattle: Summon a 2/2 Treant"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		# This Deathrattle can't possibly be triggered in hand
 		self.keeper.summon(Treant_Classic(self.keeper.Game, self.keeper.ID))
 
 class Death_Webspinner(Deathrattle_Minion):
+	description = "Deathrattle: Add a random Beast to your hand"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.addCardtoHand(numpyChoice(self.rngPool("Beasts")), self.keeper.ID)
 
 class Death_SavannahHighmane(Deathrattle_Minion):
+	description = "Deathrattle: Summon two 2/2 Hyenas"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.summon([Hyena_Classic(self.keeper.Game, self.keeper.ID) for _ in (0, 1)], relative="<>")
 
 class Death_AegwynntheGuardian(Deathrattle_Minion):
+	description = "Deathrattle: The next minion your draw inherits the power of the Guardian"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		AegwynntheGuardian_Effect(self.keeper.Game, self.keeper.ID).connect()
 
 class Death_TirionFordring(Deathrattle_Minion):
+	description = "Deathrattle: Equip a 5/3 Ashbringer"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.equipWeapon(Ashbringer(self.keeper.Game, self.keeper.ID))
 
 class Death_ShadowedSpirit(Deathrattle_Minion):
+	description = "Deathrattle: Deal 3 damage to the enemy hero"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.dealsDamage(self.keeper.Game.heroes[3-self.keeper.ID], 3)
 
 class Death_TombPillager(Deathrattle_Minion):
+	description = "Deathrattle: Add a Coin to your hand"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.addCardtoHand(TheCoin(self.keeper.Game, self.keeper.ID), self.keeper.ID)
 
 class Death_PossessedVillager(Deathrattle_Minion):
+	description = "Deathrattle: Summon a 1/1 Shadow Beast"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.summon(Shadowbeast(self.keeper.Game, self.keeper.ID))
 
 class Death_FelsoulJailer(Deathrattle_Minion):
+	description = "Deathrattle: Return the discarded card to opponent's hand"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		if self.savedObj: self.keeper.addCardtoHand(self.savedObj, 3 - self.keeper.ID)
 
@@ -490,6 +491,57 @@ class Trig_Gorehowl(TrigBoard):
 
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.losesAtkInstead = True
+
+
+"""TrigEffects & Game Auras"""
+class GamaManaAura_RagingFelscreamer(GameManaAura_OneTime):
+	by = -2
+	def applicable(self, target): return target.ID == self.ID and "Demon" in target.race
+
+class GameManaAura_NordrassilDruid(GameManaAura_OneTime):
+	by = -3
+	def applicable(self, target): return target.ID == self.ID and target.category == "Spell"
+
+class LockandLoad_Effect(TrigEffect):
+	signals, trigType = ("SpellBeenPlayed",), "Conn&TurnEnd"
+	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
+		return subject.ID == self.ID
+
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		self.card.addCardtoHand(numpyChoice(self.card.rngPool("Hunter Cards")), self.ID)
+
+	def turnEndTrigger(self):
+		self.disconnect()
+
+
+class AegwynntheGuardian_Effect(TrigEffect):
+	signals, trigType = ("CardDrawn",), "Conn&TrigAura"
+	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
+		return target[0].ID == self.ID and target[0].category == "Minion"
+
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		self.disconnect()
+		self.card.giveEnchant(target[0], effGain="Spell Damage", effNum=2,
+								trig=Death_AegwynntheGuardian, trigType="Deathrattle", connect=False, name=AegwynntheGuardian)
+		
+class GameAura_PursuitofJustice(GameAura_AlwaysOn):
+	attGain, counter = 1, 1
+	def applicable(self, target): return target.name == "Silver Hand Recruit"
+	def upgrade(self):
+		self.attGain = self.counter = self.counter + 1
+		for receiver in self.receivers:
+			receiver.attGain = self.attGain
+			receiver.recipient.calcStat()
+		if self.counter and self.card.btn: self.card.btn.trigAni(self.counter)
+
+
+class GameManaAura_Preparation(GameManaAura_OneTime):
+	by = -2
+	def applicable(self, target): return target.ID == self.ID and target.category == "Spell"
+
+class GameManaAura_BloodsailDeckhand(GameManaAura_OneTime):
+	by, temporary = -1, False
+	def applicable(self, target): return target.ID == self.ID and target.category == "Weapon"
 
 
 """Neutral Cards"""
@@ -3590,73 +3642,31 @@ class GrommashHellscream(Minion):
 		if self.onBoard and not self.silenced and self.dmgTaken > 0: self.attack += 6
 
 
-"""Game TrigEffects & Game Auras"""
-class GamaManaAura_RagingFelscreamer(GameManaAura_OneTime):
-	card, by = RagingFelscreamer, -2
-	def applicable(self, target): return target.ID == self.ID and "Demon" in target.race
+"""Assign cardType to the Auras/Deathrattles/Trigs/TrigEffects&Game Auras"""
+Death_BloodmageThalnos.cardType = BloodmageThalnos
+Death_ExplosiveSheep.cardType = ExplosiveSheep
+Death_LootHoarder.cardType = LootHoarder
+Death_NerubianEgg.cardType = NerubianEgg
+Death_TaelanFordring.cardType = TaelanFordring
+Death_CairneBloodhoof.cardType = CairneBloodhoof
+Death_SouloftheForest.cardType = SouloftheForest
+Death_Webspinner.cardType = Webspinner
+Death_SavannahHighmane.cardType = SavannahHighmane
+Death_AegwynntheGuardian.cardType = AegwynntheGuardian
+Death_TirionFordring.cardType = Death_TirionFordring
+Death_ShadowedSpirit.cardType = ShadowedSpirit
+Death_TombPillager.cardType = Death_TombPillager
+Death_PossessedVillager.cardType = PossessedVillager
+Death_FelsoulJailer.cardType = FelsoulJailer
 
-class GameManaAura_NordrassilDruid(GameManaAura_OneTime):
-	card, by = NordrassilDruid, -3
-	def applicable(self, target): return target.ID == self.ID and target.category == "Spell"
+GamaManaAura_RagingFelscreamer.cardType = RagingFelscreamer
+GameManaAura_NordrassilDruid.cardType = NordrassilDruid
+LockandLoad_Effect.cardType = LockandLoad
+AegwynntheGuardian_Effect.cardType = AegwynntheGuardian
+GameAura_PursuitofJustice.cardType = PursuitofJustice
+GameManaAura_Preparation.cardType = Preparation
+GameManaAura_BloodsailDeckhand.cardType = BloodsailDeckhand
 
-class LockandLoad_Effect(TrigEffect):
-	card, signals, trigType = LockandLoad, ("SpellBeenPlayed",), "Conn&TurnEnd"
-	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
-		return subject.ID == self.ID
-
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.card.addCardtoHand(numpyChoice(self.card.rngPool("Hunter Cards")), self.ID)
-
-	def turnEndTrigger(self):
-		self.disconnect()
-
-
-class AegwynntheGuardian_Effect(TrigEffect):
-	card, signals, trigType = AegwynntheGuardian, ("CardDrawn",), "Conn&TrigAura"
-	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
-		return target[0].ID == self.ID and target[0].category == "Minion"
-
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.disconnect()
-		self.card.giveEnchant(target[0], effGain="Spell Damage", effNum=2,
-								trig=Death_AegwynntheGuardian, trigType="Deathrattle", connect=False, name=AegwynntheGuardian)
-		
-class GameAura_PursuitofJustice(GameAura_AlwaysOn):
-	card, attGain, counter = PursuitofJustice, 1, 1
-	def applicable(self, target): return target.name == "Silver Hand Recruit"
-	def upgrade(self):
-		self.attGain = self.counter = self.counter + 1
-		for receiver in self.receivers:
-			receiver.attGain = self.attGain
-			receiver.recipient.calcStat()
-		if self.counter and self.card.btn: self.card.btn.trigAni(self.counter)
-
-
-class GameManaAura_Preparation(GameManaAura_OneTime):
-	card, by = Preparation, -2
-	def applicable(self, target): return target.ID == self.ID and target.category == "Spell"
-
-class GameManaAura_BloodsailDeckhand(GameManaAura_OneTime):
-	card, by, temporary = BloodsailDeckhand, -1, False
-	def applicable(self, target): return target.ID == self.ID and target.category == "Weapon"
-
-
-TrigsDeaths_Core = {Death_BloodmageThalnos: (BloodmageThalnos, "Deathrattle: Draw a card"),
-					Death_ExplosiveSheep: (ExplosiveSheep, "Deathrattle: Deal 2 damage to all minions"),
-					Death_LootHoarder: (LootHoarder, "Deathrattle: Draw a card"),
-					Death_NerubianEgg: (NerubianEgg, "Deathrattle: Summon a 4/4 Nerubian"),
-					Death_TaelanFordring: (TaelanFordring, "Deathrattle: Draw your hightest-Cost minion"),
-					Death_CairneBloodhoof: (CairneBloodhoof, "Deathrattle: Summon a 4/5 Baine Bloodhoof"),
-					Death_SouloftheForest: (SouloftheForest, "Deathrattle: Summon a 2/2 Treant"),
-					Death_Webspinner: (Webspinner, "Deathrattle: Add a random Beast to your hand"),
-					Death_SavannahHighmane: (SavannahHighmane, "Deathrattle: Summon two 2/2 Hyenas"),
-					Death_AegwynntheGuardian: (AegwynntheGuardian, "Deathrattle: The next minion your draw inherits the power of the Guardian"),
-					Death_TirionFordring: (TirionFordring, "Deathrattle: Equip a 5/3 Ashbringer"),
-					Death_ShadowedSpirit: (ShadowedSpirit, "Deathrattle: Deal 3 damage to the enemy hero"),
-					Death_TombPillager: (TombPillager, "Deathrattle: Add a Coin to your hand"),
-					Death_PossessedVillager: (PossessedVillager, "Deathrattle: Summon a 1/1 Shadow Beast"),
-					Death_FelsoulJailer: (FelsoulJailer, "Deathrattle: Return the discarded card to opponent's hand"),
-					}
 
 
 Core_Cards = [

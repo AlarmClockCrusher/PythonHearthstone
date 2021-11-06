@@ -1,4 +1,3 @@
-from Parts_ConstsFuncsImports import *
 from Parts_CardTypes import *
 from Parts_TrigsAuras import *
 
@@ -373,6 +372,7 @@ class Trig_GlacierRacer(Spellburst):
 
 
 class Trig_KeywardenIvory(Spellburst):
+	description = "Spellburst: Add the discover card to your hand"
 	def __init__(self, keeper, card=None):
 		super().__init__(keeper)
 		self.savedObj = card
@@ -423,30 +423,36 @@ class Trig_SpikedWheel(Trig_SelfAura):
 
 """Deathrattles"""
 class Death_Showstopper(Deathrattle_Minion):
+	description = "Deathrattle: Silence all minions"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		curGame = self.keeper.Game
 		for minion in curGame.minionsonBoard(1) + curGame.minionsonBoard(2):
 			minion.getsSilenced()
 
 class Death_ClawMachine(Deathrattle_Minion):
+	description = "Deathrattle: Draw a minion and give it +3/+3"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		card, mana, entersHand = self.keeper.drawCertainCard(lambda card: card.category == "Minion")
-		if entersHand: self.keeper.giveEnchant(card, 3, 3, name=ClawMachine)
+		minion, mana, entersHand = self.keeper.drawCertainCard(lambda card: card.category == "Minion")
+		if entersHand: self.keeper.giveEnchant(minion, 3, 3, name=ClawMachine)
 
 class Death_RenownedPerformer(Deathrattle_Minion):
+	description = "Deathrattle: Summon two 1/1 Assistants with Rush"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.summon([PerformersAssistant(self.keeper.Game, self.keeper.ID) for _ in (0, 1)], relative="<>")
 		
 class Death_Greybough(Deathrattle_Minion):
+	description = "Deathrattle: Give a random friendly minion 'Deathrattle: Summon Greybough'"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		if minions := self.keeper.Game.minionsonBoard(self.keeper.ID):
 			self.keeper.giveEnchant(numpyChoice(minions), trig=Death_SummonGreybough, trigType="Deathrattle", connect=True)
 
 class Death_SummonGreybough(Deathrattle_Minion):
+	description = "Deathrattle: Summon Greybough"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.summon(Greybough(self.keeper.Game, self.keeper.ID))
 
 class Death_DarkmoonTonk(Deathrattle_Minion):
+	description = "Deathrattle: Fire four missiles at random enemies that deal 2 damage each"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		minion = self.keeper
 		for num in (0, 1, 2, 3):
@@ -454,19 +460,23 @@ class Death_DarkmoonTonk(Deathrattle_Minion):
 			else: break
 
 class Death_TicketMaster(Deathrattle_Minion):
+	description = "Deathrattle: Shuffle 3 Tickets into your deck"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		keeper = self.keeper
 		keeper.shuffleintoDeck([Tickets(keeper.Game, keeper.ID) for _ in (0, 1, 2)])
 		
 class Death_RedscaleDragontamer(Deathrattle_Minion):
+	description = "Deathrattle: Draw a Dragon"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.drawCertainCard(lambda card: "Dragon" in card.race)
 		
 class Death_RingMatron(Deathrattle_Minion):
+	description = "Deathrattle: Summon two 3/2 Imps"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.summon([FieryImp(self.keeper.Game, self.keeper.ID) for _ in (0, 1)], relative="<>")
 		
 class Death_BumperCar(Deathrattle_Minion):
+	description = "Deathrattle: Add two 1/1 Riders with Rush to your hand"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.addCardtoHand([DarkmoonRider, DarkmoonRider], self.keeper.ID)
 
@@ -474,9 +484,152 @@ PrimeMinions = (MsshifnPrime, ZixorPrime, SolarianPrime, MurgurglePrime, Reliqua
 				AkamaPrime, VashjPrime, KanrethadPrime, KargathPrime)
 
 class Death_EnvoyRustwix(Deathrattle_Minion):
+	description = "Deathrattle: Shuffle 3 random Prime Legendary minions into your deck"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		minion = self.keeper
 		minion.shuffleintoDeck([prime(minion.Game, minion.ID) for prime in numpyChoice(PrimeMinions, 3, replace=True)])
+
+
+"""Game TrigEffects & Game Auras"""
+#Assume one can get CThun as long as pieces are played, even if it didn't start in their deck
+class CThuntheShattered_Effect(TrigEffect):
+	signals, counter, trigType = ("CThunPiece",), 4, "Conn&TrigAura"
+	def __init__(self, Game, ID):
+		super().__init__(Game, ID)
+		self.pieces = ["Body", "Eye", "Heart", "Maw"]
+
+	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
+		return ID == self.ID and comment in self.pieces
+
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		self.pieces.remove(comment)
+		self.counter -= 1
+		if self.counter < 1:
+			self.card.shuffleintoDeck(self.card)
+			self.card.creator = None
+			self.disconnect()
+			del self.Game.trigsBoard[self.ID]["CThunPiece"]
+
+	def assistCreateCopy(self, Copy):
+		Copy.pieces = self.pieces[:]
+
+
+class GameManaAura_IllidariStudies(GameManaAura_OneTime):
+	by, temporary = -1, False
+	def applicable(self, target): return target.ID == self.ID and "~Outcast" in target.index
+
+
+class Stiltstepper_Effect(TrigEffect):
+	signals, trigType = ("MinionBeenPlayed", "SpellBeenPlayed", "WeaponBeenPlayed", "HeroCardBeenPlayed"), "Conn&TurnEnd"
+	def __init__(self, Game, ID, cardDrawn=None):
+		super().__init__(Game, ID)
+		self.savedObj = cardDrawn
+
+	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
+		return subject.ID == self.ID and subject == self.savedObj
+
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		self.card.giveHeroAttackArmor(self.ID, attGain=4, name=Stiltstepper)
+		self.disconnect()
+
+	def assistCreateCopy(self, Copy):
+		Copy.cardMarked = self.savedObj.createCopy(Copy.Game)
+
+
+class Acrobatics_Effect(TrigEffect):
+	signals, counter, trigType = ("MinionBeenPlayed", "SpellBeenPlayed", "WeaponBeenPlayed", "HeroCardBeenPlayed"), 2, "Conn&TurnEnd"
+	def __init__(self, Game, ID, cardsDrawn=()):
+		super().__init__(Game, ID)
+		self.savedObjs = cardsDrawn
+		self.animate = False
+
+	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
+		return subject.ID == self.ID and subject in self.savedObjs
+
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		self.savedObjs.remove(subject)
+		self.counter -= 1
+		if self.card.btn: self.card.btn.trigAni(self.counter)
+		if self.counter < 1:
+			if self.Game.GUI: self.Game.GUI.showOffBoardTrig(self.card)
+			self.Game.Hand_Deck.drawCard(self.ID)
+			self.Game.Hand_Deck.drawCard(self.ID)
+			self.disconnect()
+
+	def assistCreateCopy(self, Copy):
+		Copy.cardsDrawn = [card.createCopy(Copy.Game) for card in self.savedObjs]
+
+
+class ExpendablePerformers_Effect(TrigEffect):
+	signals, trigType, animate = ("MinionDies",), "Conn&TurnEnd", False
+	def __init__(self, Game, ID, minions=()):
+		super().__init__(Game, ID)
+		self.savedObjs = minions
+
+	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
+		return target.ID == self.ID and target in self.savedObjs
+
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		self.savedObjs.remove(target)
+		if not self.savedObjs:
+			self.disconnect()
+			if self.Game.GUI: self.Game.GUI.showOffBoardTrig(self.card)
+			self.card.summon([IllidariInitiate(self.Game, self.ID) for _ in range(7)])
+
+	def assistCreateCopy(self, Copy):
+		Copy.minions = [minion.createCopy(Copy.Game) for minion in self.savedObjs]
+
+
+class GameManaAura_LunarEclipse(GameManaAura_OneTime):
+	by = -2
+	def applicable(self, target): return target.ID == self.ID and target.category == "Spell"
+
+class SolarEclipse_Effect(TrigEffect):
+	signals, trigType = ("SpellBeenCast",), "Conn&TurnEnd&OnlyKeepOne"
+	def __init__(self, Game, ID, card=None):
+		super().__init__(Game, ID)
+		self.savedObj = card #The Solar Eclipse card that casts this is restored.
+
+	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
+		return subject.ID == self.ID and subject != self.savedObj  # This won't respond to the Solar Eclipse that sends the signal
+
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		self.Game.effects[self.ID]["Spells x2"] -= 1
+		self.disconnect()
+
+	def trigEffect(self):
+		self.Game.effects[self.ID]["Spells x2"] -= 1
+		self.disconnect()
+
+	def assistCreateCopy(self, Copy):
+		Copy.savedObj = self.savedObj.createCopy(Copy.Game)
+
+
+class GameManaAura_GameMaster(GameManaAura_OneTime):
+	to = 1
+	def applicable(self, target): return target.ID == self.ID and target.race == "Secret"
+
+class GameManaAura_FoxyFraud(GameManaAura_OneTime):
+	by = -2
+	def applicable(self, target): return target.ID == self.ID and "~Combo" in target.index
+
+
+class LothraxiontheRedeemed_Effect(TrigEffect):
+	signals, trigType = ("MinionBeenSummoned",), "Conn&TrigAura&OnlyKeepOne"
+	def connect(self):
+		trigs = getListinDict(self.Game.trigsBoard[self.ID], "MinionBeenSummoned")
+		if (i := next((i for i, trig in enumerate(trigs) if isinstance(trig, LothraxiontheRedeemed_Effect)), -1)) > -1:
+			trigs.append(trigs.pop(i)) #把给予圣盾的扳机移到最新的位置
+		else:
+			self.Game.trigAuras[self.ID].append(self)
+			trigs.append(self)
+			if self.Game.GUI: self.Game.GUI.heroZones[self.ID].addaTrig(self.card)
+
+	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
+		return subject.ID == self.ID and subject.name == "Silver Hand Recruit"
+
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		self.card.giveEnchant(subject, effGain="Divine Shield", name=LothraxiontheRedeemed)
 
 
 """Neutral Cards"""
@@ -1984,9 +2137,9 @@ class SaygeSeerofDarkmoon(Minion):
 		
 		
 class MaskofCThun(Spell):
-	Class, school, name = "Mage", "", "Mask of C'Thun"
+	Class, school, name = "Mage", "Shadow", "Mask of C'Thun"
 	requireTarget, mana, effects = False, 7, ""
-	index = "DARKMOON_FAIRE~Mage~Spell~7~~Mask of C'Thun"
+	index = "DARKMOON_FAIRE~Mage~Spell~7~Shadow~Mask of C'Thun"
 	description = "Deal 10 damage randomly split among all enemies"
 	name_CN = "克苏恩面具"
 	
@@ -2186,10 +2339,9 @@ class Insight_Corrupt(Spell):
 	index = "DARKMOON_FAIRE~Priest~Spell~2~Shadow~Insight~Corrupted~Uncollectible"
 	description = "Corrupted. Draw a minion. Reduce its Cost by (2)"
 	name_CN = "洞察"
-
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		card, mana, entersHand = self.drawCertainCard(lambda card: card.category == "Minion")
-		if entersHand: ManaMod(card, by=-2).applies()
+		minion, mana, entersHand = self.drawCertainCard(lambda card: card.category == "Minion")
+		if entersHand: ManaMod(minion, by=-2).applies()
 
 class Insight(Spell):
 	Class, school, name = "Priest", "Shadow", "Insight"
@@ -2314,9 +2466,9 @@ class FortuneTeller(Minion):
 		
 		
 class IdolofYShaarj(Spell):
-	Class, school, name = "Priest", "", "Idol of Y'Shaarj"
+	Class, school, name = "Priest", "Shadow", "Idol of Y'Shaarj"
 	requireTarget, mana, effects = False, 8, ""
-	index = "DARKMOON_FAIRE~Priest~Spell~8~~Idol of Y'Shaarj"
+	index = "DARKMOON_FAIRE~Priest~Spell~8~Shadow~Idol of Y'Shaarj"
 	description = "Summon a 10/10 copy of a minion in your deck"
 	name_CN = "亚煞极神像"
 	def available(self):
@@ -2876,8 +3028,8 @@ class StageDive_Corrupt(Spell):
 	name_CN = "舞台跳水"
 
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		card, mana, entersHand = self.drawCertainCard(lambda card: card.category == "Minion" and card.effects["Rush"] > 0)
-		if entersHand: self.giveEnchant(card, 2, 1, name=StageDive_Corrupt, add2EventinGUI=False)
+		minion, mana, entersHand = self.drawCertainCard(lambda card: card.category == "Minion" and card.effects["Rush"] > 0)
+		if entersHand: self.giveEnchant(minion, 2, 1, name=StageDive_Corrupt, add2EventinGUI=False)
 
 class StageDive(Spell):
 	Class, school, name = "Warrior", "", "Stage Dive"
@@ -3573,162 +3725,32 @@ class RaceGuard(Minion):
 	name_CN = "赛道护卫"
 	
 
-"""Game TrigEffects & Game Auras"""
-#Assume one can get CThun as long as pieces are played, even if it didn't start in their deck
-class CThuntheShattered_Effect(TrigEffect):
-	card, signals, counter, trigType = CThuntheShattered, ("CThunPiece",), 4, "Conn&TrigAura"
-	def __init__(self, Game, ID):
-		super().__init__(Game, ID)
-		self.pieces = ["Body", "Eye", "Heart", "Maw"]
+""""""
+Death_Showstopper.cardType = Showstopper
+Death_ClawMachine.cardType = ClawMachine
+Death_RenownedPerformer.cardType = RenownedPerformer
+Death_Greybough.cardType = Greybough
+Death_SummonGreybough.cardType = Greybough
+Death_DarkmoonTonk.cardType = DarkmoonTonk
+Death_TicketMaster.cardType = TicketMaster
+Death_RedscaleDragontamer.cardType = RedscaleDragontamer
+Death_RingMatron.cardType = RingMatron
+Death_BumperCar.cardType = BumperCar
+Death_EnvoyRustwix.cardType = EnvoyRustwix
+Trig_KeywardenIvory.cardType = KeywardenIvory
 
-	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
-		return ID == self.ID and comment in self.pieces
-
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.pieces.remove(comment)
-		self.counter -= 1
-		if self.counter < 1:
-			self.card.shuffleintoDeck(self.card)
-			self.card.creator = None
-			self.disconnect()
-			del self.Game.trigsBoard[self.ID]["CThunPiece"]
-
-	def assistCreateCopy(self, Copy):
-		Copy.pieces = self.pieces[:]
-
-
-class GameManaAura_IllidariStudies(GameManaAura_OneTime):
-	card, by, temporary = IllidariStudies, -1, False
-	def applicable(self, target): return target.ID == self.ID and "~Outcast" in target.index
+CThuntheShattered_Effect.cardType = CThuntheShattered
+GameManaAura_IllidariStudies.cardType = IllidariStudies
+Stiltstepper_Effect.cardType = Stiltstepper
+Acrobatics_Effect.cardType = Acrobatics
+ExpendablePerformers_Effect.cardType = ExpendablePerformers
+GameManaAura_LunarEclipse.cardType = LunarEclipse
+SolarEclipse_Effect.cardType = SolarEclipse
+GameManaAura_GameMaster.cardType = GameMaster
+GameManaAura_FoxyFraud.cardType = FoxyFraud
+LothraxiontheRedeemed_Effect.cardType = LothraxiontheRedeemed
 
 
-class Stiltstepper_Effect(TrigEffect):
-	card, signals, trigType = Stiltstepper, ("MinionBeenPlayed", "SpellBeenPlayed", "WeaponBeenPlayed", "HeroCardBeenPlayed"), "Conn&TurnEnd"
-	def __init__(self, Game, ID, cardDrawn=None):
-		super().__init__(Game, ID)
-		self.savedObj = cardDrawn
-
-	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
-		return subject.ID == self.ID and subject == self.savedObj
-
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.card.giveHeroAttackArmor(self.ID, attGain=4, name=Stiltstepper)
-		self.disconnect()
-
-	def assistCreateCopy(self, Copy):
-		Copy.cardMarked = self.savedObj.createCopy(Copy.Game)
-
-
-class Acrobatics_Effect(TrigEffect):
-	card, signals, counter, trigType = Acrobatics, ("MinionBeenPlayed", "SpellBeenPlayed", "WeaponBeenPlayed", "HeroCardBeenPlayed"), 2, "Conn&TurnEnd"
-	def __init__(self, Game, ID, cardsDrawn=()):
-		super().__init__(Game, ID)
-		self.savedObjs = cardsDrawn
-		self.animate = False
-
-	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
-		return subject.ID == self.ID and subject in self.savedObjs
-
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.savedObjs.remove(subject)
-		self.counter -= 1
-		if self.card.btn: self.card.btn.trigAni(self.counter)
-		if self.counter < 1:
-			if self.Game.GUI: self.Game.GUI.showOffBoardTrig(self.card)
-			self.Game.Hand_Deck.drawCard(self.ID)
-			self.Game.Hand_Deck.drawCard(self.ID)
-			self.disconnect()
-
-	def assistCreateCopy(self, Copy):
-		Copy.cardsDrawn = [card.createCopy(Copy.Game) for card in self.savedObjs]
-
-
-class ExpendablePerformers_Effect(TrigEffect):
-	card, signals, trigType, animate = ExpendablePerformers, ("MinionDies",), "Conn&TurnEnd", False
-	def __init__(self, Game, ID, minions=()):
-		super().__init__(Game, ID)
-		self.savedObjs = minions
-
-	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
-		return target.ID == self.ID and target in self.savedObjs
-
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.savedObjs.remove(target)
-		if not self.savedObjs:
-			self.disconnect()
-			if self.Game.GUI: self.Game.GUI.showOffBoardTrig(self.card)
-			self.card.summon([IllidariInitiate(self.Game, self.ID) for _ in range(7)])
-
-	def assistCreateCopy(self, Copy):
-		Copy.minions = [minion.createCopy(Copy.Game) for minion in self.savedObjs]
-
-
-class GameManaAura_LunarEclipse(GameManaAura_OneTime):
-	card, by = LunarEclipse, -2
-	def applicable(self, target): return target.ID == self.ID and target.category == "Spell"
-
-class SolarEclipse_Effect(TrigEffect):
-	card, signals, trigType = SolarEclipse, ("SpellBeenCast",), "Conn&TurnEnd&OnlyKeepOne"
-	def __init__(self, Game, ID, card=None):
-		super().__init__(Game, ID)
-		self.savedObj = card #The Solar Eclipse card that casts this is restored.
-
-	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
-		return subject.ID == self.ID and subject != self.savedObj  # This won't respond to the Solar Eclipse that sends the signal
-
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.Game.effects[self.ID]["Spells x2"] -= 1
-		self.disconnect()
-
-	def trigEffect(self):
-		self.Game.effects[self.ID]["Spells x2"] -= 1
-		self.disconnect()
-
-	def assistCreateCopy(self, Copy):
-		Copy.savedObj = self.savedObj.createCopy(Copy.Game)
-
-
-class GameManaAura_GameMaster(GameManaAura_OneTime):
-	card, to = GameMaster, 1
-	def applicable(self, target): return target.ID == self.ID and target.race == "Secret"
-
-
-class GameManaAura_FoxyFraud(GameManaAura_OneTime):
-	card, by = FoxyFraud, -2
-	def applicable(self, target): return target.ID == self.ID and "~Combo" in target.index
-
-
-class LothraxiontheRedeemed_Effect(TrigEffect):
-	card, signals, trigType = LothraxiontheRedeemed, ("MinionBeenSummoned",), "Conn&TrigAura&OnlyKeepOne"
-	def connect(self):
-		trigs = getListinDict(self.Game.trigsBoard[self.ID], "MinionBeenSummoned")
-		if (i := next((i for i, trig in enumerate(trigs) if isinstance(trig, LothraxiontheRedeemed_Effect)), -1)) > -1:
-			trigs.append(trigs.pop(i)) #把给予圣盾的扳机移到最新的位置
-		else:
-			self.Game.trigAuras[self.ID].append(self)
-			trigs.append(self)
-			if self.Game.GUI: self.Game.GUI.heroZones[self.ID].addaTrig(self.card)
-
-	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
-		return subject.ID == self.ID and subject.name == "Silver Hand Recruit"
-
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.card.giveEnchant(subject, effGain="Divine Shield", name=LothraxiontheRedeemed)
-
-
-TrigsDeaths_Darkmoon = {Death_Showstopper: (Showstopper, "Deathrattle: Silence all minions"),
-						Death_ClawMachine: (ClawMachine, "Deathrattle: Draw a minion and give it +3/+3"),
-						Death_RenownedPerformer: (RenownedPerformer, "Deathrattle: Summon two 1/1 Assistants with Rush"),
-						Death_Greybough: (Greybough, "Deathrattle: Give a random friendly minion 'Deathrattle: Summon Greybough'"),
-						Death_SummonGreybough: (Greybough, "Deathrattle: Summon Greybough"),
-						Death_DarkmoonTonk: (DarkmoonTonk, "Deathrattle: Fire four missiles at random enemies that deal 2 damage each"),
-						Death_TicketMaster: (TicketMaster, "Deathrattle: Shuffle 3 Tickets into your deck"),
-						Death_RedscaleDragontamer: (RedscaleDragontamer, "Deathrattle: Draw a Dragon"),
-						Death_RingMatron: (RingMatron, "Deathrattle: Summon two 3/2 Imps"),
-						Death_BumperCar: (BumperCar, "Deathrattle: Add two 1/1 Riders with Rush to your hand"),
-						Death_EnvoyRustwix: (EnvoyRustwix, "Deathrattle: Shuffle 3 random Prime Legendary minions into your deck"),
-						Trig_KeywardenIvory: (KeywardenIvory, "Spellburst: Add the discover card to your hand"),
-						}
 
 Darkmoon_Cards = [
 		#Neutral
@@ -3772,6 +3794,9 @@ Darkmoon_Cards = [
 		#Warrior
 		StageDive, StageDive_Corrupt, BumperCar, ETCGodofMetal, Minefield, RingmastersBaton, StageHand, FeatofStrength,
 		SwordEater, Jawbreaker, RingmasterWhatley, TentTrasher,
+		]
+
+DarkmoonMiniSet_Cards = [
 		#Neutral
 		ArmorVendor, Crabrider, Deathwarden, Moonfang, RunawayBlackwing,
 		#Demon Hunter
@@ -3795,6 +3820,8 @@ Darkmoon_Cards = [
 		#Warrior
 		SpikedWheel, Ironclad, Barricade, RaceGuard,
 ]
+
+Darkmoon_Cards += DarkmoonMiniSet_Cards
 
 Darkmoon_Cards_Collectible = [
 		#Neutral

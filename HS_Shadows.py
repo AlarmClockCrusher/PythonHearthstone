@@ -1,4 +1,3 @@
-from Parts_ConstsFuncsImports import *
 from Parts_CardTypes import *
 from Parts_TrigsAuras import *
 
@@ -14,13 +13,27 @@ class Aura_WhirlwindTempest(Aura_AlwaysOn):
 	effGain, targets = "Mega Windfury", "All"
 	def applicable(self, target): return target.effects["Windfury"] > 0
 
+class ManaAura_KirinTorTricaster(ManaAura):
+	by = 1
+	def applicable(self, target): target.ID == self.keeper.ID and target.category == "Spell"
+
+class ManaAura_Kalecgos(ManaAura_1UsageEachTurn):
+	def auraAppears(self):
+		game, ID = self.keeper.Game, self.keeper.ID
+		if game.turn == ID and game.Counters.numSpellsPlayedThisTurn[ID] < 1:
+			self.aura = GameManaAura_Kalecgos(game, ID)
+			game.Manas.CardAuras.append(self.aura)
+			self.aura.auraAppears()
+		add2ListinDict(self, game.trigsBoard[ID], "TurnStarts")
 
 """Deathrattles"""
 class Death_HenchClanHogsteed(Deathrattle_Minion):
+	description = "Deathrattle: Summon a 1/1 Murloc"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.summon(HenchClanSquire(self.keeper.Game, self.keeper.ID))
 
 class Death_RecurringVillain(Deathrattle_Minion):
+	description = "Deathrattle: If this minion has 4 or more Attack, resummon it"
 	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
 		return self.keeper.Game.effects[self.keeper.ID]["Deathrattle X"] < 1 and target == self.keeper and number > 3
 
@@ -28,24 +41,29 @@ class Death_RecurringVillain(Deathrattle_Minion):
 		self.keeper.summon(type(self.keeper)(self.keeper.Game, self.keeper.ID))
 
 class Death_EccentricScribe(Deathrattle_Minion):
+	description = "Deathrattle: Summon four 1/1 Vengeful Scrolls"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		minion = self.keeper
 		minion.summon([VengefulScroll(minion.Game, minion.ID) for i in (0, 1, 2, 3)], relative="<>")
 
 class Death_Safeguard(Deathrattle_Minion):
+	description = "Deathrattle: Summon a 0/5 Vault Safe with Taunt"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.summon(VaultSafe(self.keeper.Game, self.keeper.ID))
 
 class Death_TunnelBlaster(Deathrattle_Minion):
+	description = "Deathrattle: Deal 3 damage to all minions"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		targets = self.keeper.Game.minionsonBoard(1) + self.keeper.Game.minionsonBoard(2)
 		self.keeper.AOE_Damage(targets, [3] * len(targets))
 
 class Death_Acornbearer(Deathrattle_Minion):
+	description = "Deathrattle: Add two 1/1 Squirrels to your hand"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.addCardtoHand([Squirrel_Shadows, Squirrel_Shadows], self.keeper.ID)
 
 class Death_Lucentbark(Deathrattle_Minion):
+	description = "Deathrattle: Go dormant. Restore 5 Health to awaken this minion"
 	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
 		return target == self.keeper and self.keeper.Game.space(self.keeper.ID) > 0
 
@@ -60,31 +78,38 @@ class Death_Lucentbark(Deathrattle_Minion):
 			minion.Game.transform(minion, dormant)
 
 class Death_Shimmerfly(Deathrattle_Minion):
+	description = "Deathrattle: Add a random Hunter spell to your hand"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.addCardtoHand(numpyChoice(self.rngPool("Hunter Spells")), self.keeper.ID)
 
 class Death_Ursatron(Deathrattle_Minion):
+	description = "Deathrattle: Draw a Mech from your deck"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.drawCertainCard(lambda card: "Mech" in card.race)
 		
 class Death_Oblivitron(Deathrattle_Minion):
+	description = "Deathrattle: Summon a Mech from your hand and trigger its Deathrattle"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		if mech := self.keeper.try_SummonfromHand(func=lambda card: "Mech" in card.race):
 			for trig in mech.deathrattles: trig.trig("TrigDeathrattle", mech.ID, None, mech, mech.attack, "")
 
 class Death_BronzeHerald(Deathrattle_Minion):
+	description = "Deathrattle: Add Two 4/4 Bronze Dragons to your hand"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.addCardtoHand([BronzeDragon, BronzeDragon], self.keeper.ID)
 
 class Death_EVILConscripter(Deathrattle_Minion):
+	description = "Deathrattle: Add A random Lackey to your hand"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.addCardtoHand(numpyChoice(Lackeys), self.keeper.ID)
 
 class Death_HenchClanShadequill(Deathrattle_Minion):
+	description = "Deathrattle: Restore 5 Health to the opponent hero"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.restoresHealth(self.keeper.Game.heroes[3 - self.keeper.ID], self.keeper.calcHeal(5))
 
 class Death_ConvincingInfiltrator(Deathrattle_Minion):
+	description = "Deathrattle: Destroy a random enemy minion"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		minion = self.keeper
 		minions = minion.Game.minionsAlive(3 - minion.ID)
@@ -92,6 +117,7 @@ class Death_ConvincingInfiltrator(Deathrattle_Minion):
 
 # There are minions who also have this deathrattle.
 class Death_WagglePick(Deathrattle_Weapon):
+	description = "Deathrattle: Return a random friendly minion to your hand. It costs (2) less"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		if minions := self.keeper.Game.minionsonBoard(self.keeper.ID):
 			minion = numpyChoice(minions)
@@ -99,10 +125,12 @@ class Death_WagglePick(Deathrattle_Weapon):
 			self.keeper.Game.returnObj2Hand(minion, deathrattlesStayArmed=False, manaMod=ManaMod(minion, by=-2))
 
 class Death_SouloftheMurloc(Deathrattle_Minion):
+	description = "Deathrattle: Summon a 1/1 Murloc"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.summon(MurlocScout(self.keeper.Game, self.keeper.ID))
 
 class Death_EagerUnderling(Deathrattle_Weapon):
+	description = "Deathrattle: Give Two Random Friendly Minions +2/+2"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		if minions := self.keeper.Game.minionsonBoard(self.keeper.ID):
 			self.keeper.AOE_GiveEnchant(numpyChoice(minions, min(len(minions), 2), replace=False), 2, 2, name=EagerUnderling)
@@ -263,21 +291,6 @@ class Trig_MagicDartFrog(TrigBoard):
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		minions = self.keeper.Game.minionsAlive(3-self.keeper.ID)
 		if minions: self.keeper.dealsDamage(numpyChoice(minions), 1)
-		
-		
-class ManaAura_KirinTorTricaster(ManaAura):
-	by = 1
-	def applicable(self, target): target.ID == self.keeper.ID and target.category == "Spell"
-
-
-class ManaAura_Kalecgos(ManaAura_1UsageEachTurn):
-	def auraAppears(self):
-		game, ID = self.keeper.Game, self.keeper.ID
-		if game.turn == ID and game.Counters.numSpellsPlayedThisTurn[ID] < 1:
-			self.aura = GameManaAura_Kalecgos(game, ID)
-			game.Manas.CardAuras.append(self.aura)
-			self.aura.auraAppears()
-		add2ListinDict(self, game.trigsBoard[ID], "TurnStarts")
 
 
 class Trig_NeverSurrender(Trig_Secret):
@@ -399,8 +412,20 @@ class Trig_Wrenchcalibur(TrigBoard):
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		weapon = self.keeper
 		weapon.shuffleintoDeck(Bomb(weapon.Game, 3-weapon.ID), enemyCanSee=True)
-		
-		
+
+
+"""Game TrigEffects and Game Aura"""
+class ThoridaltheStarsFury_Effect(TrigEffect):
+	counter, trigType = 2, "TurnEnd&OnlyKeepOne"
+	def trigEffect(self):
+		self.Game.heroes[self.ID].loeseEffect("Spell Damage", amount=self.counter)
+
+class GameManaAura_Kalecgos(GameManaAura_OneTime):
+	to = 0
+	def applicable(self, target): return target.ID == self.ID and target.category == "Spell"
+
+
+"""Cards"""
 class Twinspell(Spell):
 	twinspellCopy = None
 	def cast(self, target=None, func=None):
@@ -621,15 +646,10 @@ class ArcaneWatcher(Minion):
 	index = "DALARAN~Neutral~Minion~3~5~6~~Arcane Watcher"
 	requireTarget, effects, description = False, "Can't Attack", "Can't attack unless you have Spell Damage"
 	name_CN = "奥术守望者"
-	def hasSpellDamage(self):
-		return self.Game.effects[self.ID]["Spell Damage"] > 0 \
-				or any(minion.effects["Spell Damage"] > 0 for minion in self.Game.minions[self.ID])
-				
-	def canAttack(self):
-		return self.actionable() and self.attack > 0 and self.effects["Frozen"] < 1 \
-				and self.attChances_base + self.attChances_extra <= self.usageCount \
-				and (self.silenced or self.hasSpellDamage())
-				
+	def attackAllowedbyEffect(self):
+		return self.effects["Can't Attack"] < 1 or \
+			   (self.effects["Can't Attack"] == 1 and not self.silenced and self.countSpellDamage() > 0)
+
 				
 class FacelessRager(Minion):
 	Class, race, name = "Neutral", "", "Faceless Rager"
@@ -1046,11 +1066,11 @@ class JepettoJoybuzz(Minion):
 	
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		for _ in (0, 1):
-			card, mana, entersHand = self.drawCertainCard(conditional=lambda card: card.category == "Minion")
-			if not card: break
+			minion, mana, entersHand = self.drawCertainCard(conditional=lambda card: card.category == "Minion")
+			if not minion: break
 			elif entersHand:
-				self.setStat(card, 1, 1, name=JepettoJoybuzz)
-				ManaMod(card, to=1).applies()
+				self.setStat(minion, 1, 1, name=JepettoJoybuzz)
+				ManaMod(minion, to=1).applies()
 		
 
 class WhirlwindTempest(Minion):
@@ -1782,8 +1802,8 @@ class CalltoAdventure(Spell):
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
 		if indices := pickLowestCostIndices(self.Game.Hand_Deck.decks[self.ID],
 											func=lambda card: card.category == "Minion"):
-			card, mana, entersHand = self.Game.Hand_Deck.drawCard(self.ID, numpyChoice(indices))
-			if entersHand: self.giveEnchant(card, 2, 2, name=CalltoAdventure)
+			minion, mana, entersHand = self.Game.Hand_Deck.drawCard(self.ID, numpyChoice(indices))
+			if entersHand: self.giveEnchant(minion, 2, 2, name=CalltoAdventure)
 		
 		
 class DragonSpeaker(Minion):
@@ -2779,16 +2799,29 @@ class TheBoomReaver(Minion):
 			if Copy := self.summon(numpyChoice(minions).selfCopy(self.ID, self)):
 				self.giveEnchant(Copy, effGain="Rush", name=TheBoomReaver)
 		
-		
-"""Game TrigEffects and Game Aura"""
-class ThoridaltheStarsFury_Effect(TrigEffect):
-	card, counter, trigType = ThoridaltheStarsFury, 2, "TurnEnd&OnlyKeepOne"
-	def trigEffect(self):
-		self.Game.heroes[self.ID].loeseEffect("Spell Damage", amount=self.counter)
 
-class GameManaAura_Kalecgos(GameManaAura_OneTime):
-	card, to = Kalecgos, 0
-	def applicable(self, target): return target.ID == self.ID and target.category == "Spell"
+""""""
+Death_HenchClanHogsteed.cardType = HenchClanHogsteed
+Death_RecurringVillain.cardType = RecurringVillain
+Death_EccentricScribe.cardType = EccentricScribe
+Death_Safeguard.cardType = Safeguard
+Death_TunnelBlaster.cardType = TunnelBlaster
+Death_Acornbearer.cardType = Acornbearer
+Death_Lucentbark.cardType = Lucentbark
+Death_Shimmerfly.cardType = Shimmerfly
+Death_Ursatron.cardType = Ursatron
+Death_Oblivitron.cardType = Oblivitron
+Death_BronzeHerald.cardType = BronzeHerald
+Death_EVILConscripter.cardType = EVILConscripter
+Death_HenchClanShadequill.cardType = HenchClanShadequill
+Death_ConvincingInfiltrator.cardType = ConvincingInfiltrator
+Death_WagglePick.cardType = WagglePick
+Death_SouloftheMurloc.cardType = SouloftheMurloc
+Death_EagerUnderling.cardType = EagerUnderling
+
+ThoridaltheStarsFury_Effect.cardType = ThoridaltheStarsFury
+GameManaAura_Kalecgos.cardType = Kalecgos
+
 
 
 Shadows_Cards = [
@@ -2869,23 +2902,3 @@ Shadows_Cards_Collectible = [
 		ImproveMorale, ViciousScraphound, DrBoomsScheme, SweepingStrikes, ClockworkGoblin, OmegaDevastator, Wrenchcalibur,
 		BlastmasterBoom, DimensionalRipper, TheBoomReaver,
 ]
-
-
-TrigsDeaths_Shadows = {Death_HenchClanHogsteed: (HenchClanHogsteed, "Deathrattle: Summon a 1/1 Murloc"),
-					   Death_RecurringVillain: (RecurringVillain, "Deathrattle: If this minion has 4 or more Attack, resummon it"),
-					   Death_EccentricScribe: (EccentricScribe, "Deathrattle: Summon four 1/1 Vengeful Scrolls"),
-					   Death_Safeguard: (Safeguard, "Deathrattle: Summon a 0/5 Vault Safe with Taunt"),
-					   Death_TunnelBlaster: (TunnelBlaster, "Deathrattle: Deal 3 damage to all minions"),
-					   Death_Acornbearer: (Acornbearer, "Deathrattle: Add two 1/1 Squirrels to your hand"),
-					   Death_Lucentbark: (Lucentbark, "Deathrattle: Go dormant. Restore 5 Health to awaken this minion"),
-					   Death_Shimmerfly: (Shimmerfly, "Deathrattle: Add a random Hunter spell to your hand"),
-					   Death_Ursatron: (Ursatron, "Deathrattle: Draw a Mech from your deck"),
-					   Death_Oblivitron: (Oblivitron, "Deathrattle: Summon a Mech from your hand and trigger its Deathrattle"),
-					   Death_BronzeHerald: (BronzeHerald, "Deathrattle: Add Two 4/4 Bronze Dragons to your hand"),
-					   Death_EVILConscripter: (EVILConscripter, "Deathrattle: Add A random Lackey to your hand"),
-					   Death_HenchClanShadequill: (HenchClanShadequill, "Deathrattle: Restore 5 Health to the opponent hero"),
-					   Death_ConvincingInfiltrator: (ConvincingInfiltrator, "Deathrattle: Destroy a random enemy minion"),
-					   Death_WagglePick: (WagglePick, "Deathrattle: Return a random friendly minion to your hand. It costs (2) less"),
-					   Death_SouloftheMurloc: (SouloftheMurloc, "Deathrattle: Summon a 1/1 Murloc"),
-					   Death_EagerUnderling: (EagerUnderling, "Deathrattle: Give Two Random Friendly Minions +2/+2"),
-					   }

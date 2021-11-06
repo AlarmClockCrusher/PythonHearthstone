@@ -1,4 +1,3 @@
-from Parts_ConstsFuncsImports import *
 from Parts_CardTypes import *
 from Parts_TrigsAuras import *
 
@@ -355,7 +354,7 @@ class Trig_Firebrand(Spellburst):
 			
 
 class Trig_JandiceBarov(TrigBoard):
-	signals = ("MinionTakesDmg", )
+	signals, description = ("MinionTakesDmg", ), "This minion dies when it takes damage"
 	def __init__(self, keeper):
 		super().__init__(keeper)
 		self.show = False
@@ -418,7 +417,7 @@ class Trig_TuralyontheTenured(TrigBoard):
 
 		
 class Trig_PowerWordFeast(TrigBoard):
-	signals = ("TurnEnds", )
+	signals, description = ("TurnEnds", ), "Restore this minion to full health at the end of this turn"
 	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
 		return self.keeper.onBoard #Even if the current turn is not minion's owner's turn
 		
@@ -588,10 +587,12 @@ class Trig_Troublemaker(TrigBoard):
 
 """Deathrattles"""
 class Death_SneakyDelinquent(Deathrattle_Minion):
+	description = "Deathrattle: Add a 3/1 Ghost with Stealth to your hand"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.addCardtoHand(SpectralDelinquent, self.keeper.ID)
 
 class Death_EducatedElekk(Deathrattle_Minion):
+	description = "Deathrattle: Shuffle remembered spells into your deck"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		minion = self.keeper
 		minion.shuffleintoDeck([spell(minion.Game, minion.ID) for spell in self.savedObjs])
@@ -604,29 +605,33 @@ class Death_EducatedElekk(Deathrattle_Minion):
 	def assistCreateCopy(self, Copy):
 		Copy.savedObjs = self.savedObjs[:]
 
-
 class Death_FishyFlyer(Deathrattle_Minion):
+	description = "Deathrattle: Add a 4/3 Ghost with Rush to your hand"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.addCardtoHand(SpectralFlyer, self.keeper.ID)
 
 class Death_SmugSenior(Deathrattle_Minion):
+	description = "Deathrattle: Add a 5/7 Ghost with Taunt to your hand"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.addCardtoHand(SpectralSenior, self.keeper.ID)
 
 class Death_PlaguedProtodrake(Deathrattle_Minion):
+	description = "Deathrattle: Summon a random 7-Cost minion"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		self.keeper.summon(numpyChoice(self.rngPool("7-Cost Minions to Summon"))(self.keeper.Game, self.keeper.ID),
-						   self.keeper.pos + 1)
+		self.keeper.summon(numpyChoice(self.rngPool("7-Cost Minions to Summon"))(self.keeper.Game, self.keeper.ID))
 
 class Death_BloatedPython(Deathrattle_Minion):
+	description = "Deathrattle: Summon a 4/4 Hapless Handler"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.summon(HaplessHandler(self.keeper.Game, self.keeper.ID))
 
 class Death_TeachersPet(Deathrattle_Minion):
+	description = "Deathrattle: Summon a random 3-Cost Beast"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.summon(numpyChoice(self.rngPool("3-Cost Beasts to Summon"))(self.keeper.Game, self.keeper.ID))
 
 class Death_InfiltratorLilian(Deathrattle_Minion):
+	description = "Deathrattle: Summon a 4/2 Forsaken Lilian that attacks a random enemy"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		minion = ForsakenLilian(self.keeper.Game, self.keeper.ID)
 		self.keeper.summon(minion)
@@ -635,15 +640,18 @@ class Death_InfiltratorLilian(Deathrattle_Minion):
 			self.keeper.Game.battle(minion, numpyChoice(objs), verifySelectable=False, resolveDeath=False)
 
 class Death_TotemGoliath(Deathrattle_Minion):
+	description = "Deathrattle: Summon all four basic totems"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		minion, game = self.keeper, self.keeper.Game
 		minion.summon([totem(game, minion.ID) for totem in (HealingTotem, SearingTotem, StoneclawTotem, StrengthTotem)])
 
 class Death_BonewebEgg(Deathrattle_Minion):
+	description = "Deathrattle: Summon two 2/1 Spiders"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.summon([BonewebSpider(self.keeper.Game, self.keeper.ID) for _ in (0, 1)])
 
 class Death_LordBarov(Deathrattle_Minion):
+	description = "Deathrattle: Deal 1 damage to all minions"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		minions = self.keeper.Game.minionsonBoard(self.keeper.ID) + self.keeper.Game.minionsonBoard(3 - self.keeper.ID)
 		self.keeper.AOE_Damage(minions, [1 for i in range(len(minions))])
@@ -670,6 +678,120 @@ class Death_Rattlegore(Deathrattle_Minion):
 							 "index": index}
 							)
 			minion.summon(subclass(minion.Game, minion.ID))
+
+
+"""Game Trigeffects and Game auras"""
+class GameManaAura_TourGuide(GameManaAura_OneTime):
+	to, temporary, targets = 0, False, "Power"
+	def applicable(self, target): return target.ID == self.ID and target.category == "Power"
+
+class GameManaAura_CultNeophyte(GameManaAura_OneTime):
+	signals, by = ("CardEntersHand", ), +1
+	def applicable(self, target): return target.ID == self.ID and target.category == "Spell"
+
+class GameManaAura_NatureStudies(GameManaAura_OneTime):
+	by, temporary = -1, False
+	def applicable(self, target): return target.ID == self.ID and target.category == "Spell"
+
+class GameManaAura_CarrionStudies(GameManaAura_OneTime):
+	by, temporary = -1, False
+	def applicable(self, target): return target.ID == self.ID and target.category == "Minion" and target.deathrattles
+
+class GameManaAura_DraconicStudies(GameManaAura_OneTime):
+	by, temporary = -1, False
+	def applicable(self, target): return target.ID == self.ID and "Dragon" in target.race
+
+class MindrenderIllucia_Effect(TrigEffect):
+	trigType = "TurnEnd&OnlyKeepOne"
+	def __init__(self, Game, ID, cardsReplaced):
+		super().__init__(Game, ID)
+		self.savedObjs = cardsReplaced
+
+	def trigEffect(self):
+		self.Game.Hand_Deck.extractfromHand(None, self.ID, getAll=True)
+		if self.savedObjs: self.Game.Hand_Deck.addCardtoHand(self.savedObjs, self.ID)
+
+	def assistCreateCopy(self, Copy):
+		Copy.savedObjs = [card.createCopy(Copy.Game) for card in self.savedObjs]
+
+
+class SecretPassage_Effect(TrigEffect):
+	trigType = "TurnEnd"
+	def __init__(self, Game, ID, cardsfromHand, cardsfromDeck):
+		super().__init__(Game, ID)
+		self.counter = len(cardsfromHand)
+		self.cardsfromHand, self.cardsfromDeck = cardsfromHand, cardsfromDeck
+
+	def trigEffect(self):
+		HD = self.Game.Hand_Deck
+		cards2Return2Deck = [card for card in HD.hands[self.ID] if card in self.cardsfromDeck]
+		for card in cards2Return2Deck:
+			HD.extractfromHand(card, self.ID, getAll=False, enemyCanSee=False, animate=False)
+			card.reset(self.ID)
+		GUI = self.Game.GUI
+		if GUI:
+			panda_SecretPassage_LeaveHand(self.Game, GUI, cards2Return2Deck)
+			Y = HandZone1_Y if self.ID == self.Game.GUI.ID else HandZone2_Y
+			poses, hprs = posHandsTable[Y][len(cards2Return2Deck)], hprHandsTable[Y][len(cards2Return2Deck)]
+			panda_SecretPassage_BackfromPassage(self.Game, GUI, self.cardsfromHand, poses, hprs)
+
+		HD.decks[self.ID] += cards2Return2Deck
+		for card in cards2Return2Deck:
+			card.entersDeck()
+		numpyShuffle(HD.decks[self.ID])
+		if GUI: GUI.deckZones[self.ID].draw(len(HD.decks[self.ID]), len(HD.hands[self.ID]))
+		HD.addCardtoHand(self.cardsfromHand, self.ID)
+
+		self.Game.turnEndTrigger.remove(self)
+		if GUI: GUI.heroZones[self.ID].removeaTrig(self.card)
+
+	def assistCreateCopy(self, Copy):
+		Copy.cardsfromHand = [card.createCopy(Copy.Game) for card in self.cardsfromHand]
+		Copy.cardsfromDeck = [card.createCopy(Copy.Game) for card in self.cardsfromDeck]
+
+
+class GameManaAura_PrimordialStudies(GameManaAura_OneTime):
+	by, temporary = -1, False
+	def applicable(self, target): return target.ID == self.ID and target.category == "Minion" and target.effects["Spell Damage"] > 0
+
+class RuneDagger_Effect(TrigEffect):
+	counter, trigType = 1, "TurnEnd&OnlyKeepOne"
+	def trigEffect(self): self.Game.heroes[self.ID].losesEffect("Spell Damage")
+
+class InstructorFireheart_Effect(TrigEffect):
+	signals, trigType = ("SpellBeenPlayed",), "Conn&TurnEnd"
+	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
+		return subject.ID == self.ID and subject == self.savedObj
+
+	def decideSpellPool(self):
+		hero = self.Game.heroes[self.ID]
+		Class = hero.Class if hero.Class != "Neutral" else "Shaman"
+		pool = self.Game.RNGPools["%s Spells with 1 or more Cost" % Class]
+		return pool
+
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		#initiator of the discover should be InstructorFireheart_Effect(), not a real card
+		#effectType=InstructorFireheart_Effect保证发现后调用的discoverDecided依然是InstructorFireheart_Effect的
+		InstructorFireheart.discoverandGenerate(self, effectType=InstructorFireheart_Effect, comment='',
+									  			poolFunc=lambda: self.decideSpellPool())
+
+	#The initiator is this InstructorFireheart_Effect
+	def discoverDecided(self, option, case, info_RNGSync=None, info_GUISync=None):
+		self.card.handleDiscoverGeneratedCard(option, case, info_RNGSync, info_GUISync)
+		self.savedObj = option
+
+	def assistCreateCopy(self, Copy):
+		if self.savedObj: Copy.savedObj = self.savedObj.createCopy(Copy.Game)
+
+
+class GameManaAura_DemonicStudies(GameManaAura_OneTime):
+	by, temporary = -1, False
+	def applicable(self, target): return target.ID == self.ID and "Demon" in target.race
+
+class GameManaAura_AthleticStudies(GameManaAura_OneTime):
+	by, temporary = -1, False
+	def applicable(self, target): return target.ID == self.ID and target.category == "Minion" and target.effects["Rush"] > 0
+
 
 """Neutral Cards"""
 class Variant_TransferStudent(Minion):
@@ -2932,133 +3054,36 @@ class Rattlegore(Minion):
 	deathrattle = Death_Rattlegore
 
 
-"""Game Trigeffects and Game auras"""
-class GameManaAura_TourGuide(GameManaAura_OneTime):
-	card, to, temporary, targets = TourGuide, 0, False, "Power"
-	def applicable(self, target): return target.ID == self.ID and target.category == "Power"
+""""""
+Death_SneakyDelinquent.cardType = SneakyDelinquent
+Death_EducatedElekk.cardType = EducatedElekk
+Death_FishyFlyer.cardType = FishyFlyer
+Death_SmugSenior.cardType = SmugSenior
+Death_PlaguedProtodrake.cardType = PlaguedProtodrake
+Death_BloatedPython.cardType = BloatedPython
+Death_TeachersPet.cardType = TeachersPet
+Trig_JandiceBarov.cardType = JandiceBarov
+Trig_PowerWordFeast.cardType = PowerWordFeast
+Death_InfiltratorLilian.cardType = InfiltratorLilian
+Death_TotemGoliath.cardType = TotemGoliath
+Death_BonewebEgg.cardType = BonewebEgg
+Death_LordBarov.cardType = LordBarov
+Death_Rattlegore.cardType = Rattlegore
 
-class GameManaAura_CultNeophyte(GameManaAura_OneTime):
-	card, signals, by = CultNeophyte, ("CardEntersHand",), +1
-	def applicable(self, target): return target.ID == self.ID and target.category == "Spell"
-
-class GameManaAura_NatureStudies(GameManaAura_OneTime):
-	card, by, temporary = NatureStudies, -1, False
-	def applicable(self, target): return target.ID == self.ID and target.category == "Spell"
-
-class GameManaAura_CarrionStudies(GameManaAura_OneTime):
-	card, by, temporary = CarrionStudies, -1, False
-	def applicable(self, target): return target.ID == self.ID and target.category == "Minion" and target.deathrattles
-
-class GameManaAura_DraconicStudies(GameManaAura_OneTime):
-	card, by, temporary = DraconicStudies, -1, False
-	def applicable(self, target): return target.ID == self.ID and "Dragon" in target.race
-
-class MindrenderIllucia_Effect(TrigEffect):
-	card, trigType = MindrenderIllucia, "TurnEnd&OnlyKeepOne"
-	def __init__(self, Game, ID, cardsReplaced):
-		super().__init__(Game, ID)
-		self.savedObjs = cardsReplaced
-
-	def trigEffect(self):
-		self.Game.Hand_Deck.extractfromHand(None, self.ID, getAll=True)
-		if self.savedObjs: self.Game.Hand_Deck.addCardtoHand(self.savedObjs, self.ID)
-
-	def assistCreateCopy(self, Copy):
-		Copy.savedObjs = [card.createCopy(Copy.Game) for card in self.savedObjs]
+GameManaAura_TourGuide.cardType = TourGuide
+GameManaAura_CultNeophyte.cardType = CultNeophyte
+GameManaAura_NatureStudies.cardType = NatureStudies
+GameManaAura_CarrionStudies.cardType = CarrionStudies
+GameManaAura_DraconicStudies.cardType = DraconicStudies
+MindrenderIllucia_Effect.cardType = MindrenderIllucia
+SecretPassage_Effect.cardType = SecretPassage
+GameManaAura_PrimordialStudies.cardType = PrimordialStudies
+RuneDagger_Effect.cardType = RuneDagger
+InstructorFireheart_Effect.cardType = InstructorFireheart
+GameManaAura_DemonicStudies.cardType = DemonicStudies
+GameManaAura_AthleticStudies.cardType = AthleticStudies
 
 
-class SecretPassage_Effect(TrigEffect):
-	card, trigType = SecretPassage, "TurnEnd"
-	def __init__(self, Game, ID, cardsfromHand, cardsfromDeck):
-		super().__init__(Game, ID)
-		self.counter = len(cardsfromHand)
-		self.cardsfromHand, self.cardsfromDeck = cardsfromHand, cardsfromDeck
-
-	def trigEffect(self):
-		HD = self.Game.Hand_Deck
-		cards2Return2Deck = [card for card in HD.hands[self.ID] if card in self.cardsfromDeck]
-		for card in cards2Return2Deck:
-			HD.extractfromHand(card, self.ID, getAll=False, enemyCanSee=False, animate=False)
-			card.reset(self.ID)
-		GUI = self.Game.GUI
-		if GUI:
-			panda_SecretPassage_LeaveHand(self.Game, GUI, cards2Return2Deck)
-			Y = HandZone1_Y if self.ID == self.Game.GUI.ID else HandZone2_Y
-			poses, hprs = posHandsTable[Y][len(cards2Return2Deck)], hprHandsTable[Y][len(cards2Return2Deck)]
-			panda_SecretPassage_BackfromPassage(self.Game, GUI, self.cardsfromHand, poses, hprs)
-
-		HD.decks[self.ID] += cards2Return2Deck
-		for card in cards2Return2Deck:
-			card.entersDeck()
-		numpyShuffle(HD.decks[self.ID])
-		if GUI: GUI.deckZones[self.ID].draw(len(HD.decks[self.ID]), len(HD.hands[self.ID]))
-		HD.addCardtoHand(self.cardsfromHand, self.ID)
-
-		self.Game.turnEndTrigger.remove(self)
-		if GUI: GUI.heroZones[self.ID].removeaTrig(self.card)
-
-	def assistCreateCopy(self, Copy):
-		Copy.cardsfromHand = [card.createCopy(Copy.Game) for card in self.cardsfromHand]
-		Copy.cardsfromDeck = [card.createCopy(Copy.Game) for card in self.cardsfromDeck]
-
-
-class GameManaAura_PrimordialStudies(GameManaAura_OneTime):
-	card, by, temporary = PrimordialStudies, -1, False
-	def applicable(self, target): return target.ID == self.ID and target.category == "Minion" and target.effects["Spell Damage"] > 0
-
-class RuneDagger_Effect(TrigEffect):
-	card, counter, trigType = RuneDagger, 1, "TurnEnd&OnlyKeepOne"
-	def trigEffect(self): self.Game.heroes[self.ID].losesEffect("Spell Damage")
-
-class InstructorFireheart_Effect(TrigEffect):
-	card, signals, trigType = InstructorFireheart, ("SpellBeenPlayed",), "Conn&TurnEnd"
-	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
-		return subject.ID == self.ID and subject == self.savedObj
-
-	def decideSpellPool(self):
-		hero = self.Game.heroes[self.ID]
-		Class = hero.Class if hero.Class != "Neutral" else "Shaman"
-		pool = self.Game.RNGPools["%s Spells with 1 or more Cost" % Class]
-		return pool
-
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		#initiator of the discover should be InstructorFireheart_Effect(), not a real card
-		#effectType=InstructorFireheart_Effect保证发现后调用的discoverDecided依然是InstructorFireheart_Effect的
-		InstructorFireheart.discoverandGenerate(self, effectType=InstructorFireheart_Effect, comment='',
-									  			poolFunc=lambda: self.decideSpellPool())
-
-	#The initiator is this InstructorFireheart_Effect
-	def discoverDecided(self, option, case, info_RNGSync=None, info_GUISync=None):
-		self.card.handleDiscoverGeneratedCard(option, case, info_RNGSync, info_GUISync)
-		self.savedObj = option
-
-	def assistCreateCopy(self, Copy):
-		if self.savedObj: Copy.savedObj = self.savedObj.createCopy(Copy.Game)
-
-
-class GameManaAura_DemonicStudies(GameManaAura_OneTime):
-	card, by, temporary = DemonicStudies, -1, False
-	def applicable(self, target): return target.ID == self.ID and "Demon" in target.race
-
-class GameManaAura_AthleticStudies(GameManaAura_OneTime):
-	card, by, temporary = AthleticStudies, -1, False
-	def applicable(self, target): return target.ID == self.ID and target.category == "Minion" and target.effects["Rush"] > 0
-
-
-TrigsDeaths_Academy = {Death_SneakyDelinquent: (SneakyDelinquent, "Deathrattle: Add a 3/1 Ghost with Stealth to your hand"),
-						Death_EducatedElekk: (EducatedElekk, "Deathrattle: Shuffle remembered spells into your deck"),
-						Death_FishyFlyer: (FishyFlyer, "Deathrattle: Add a 4/3 Ghost with Rush to your hand"),
-						Death_SmugSenior: (SmugSenior, "Deathrattle: Add a 5/7 Ghost with Taunt to your hand"),
-						Death_PlaguedProtodrake: (PlaguedProtodrake, "Deathrattle: Summon a random 7-Cost minion"),
-						Death_BloatedPython: (BloatedPython, "Deathrattle: Summon a 4/4 Hapless Handler"),
-						Death_TeachersPet: (TeachersPet, "Deathrattle: Summon a random 3-Cost Beast"),
-						Trig_JandiceBarov: (JandiceBarov, "This minion dies when it takes damage"),
-						Trig_PowerWordFeast: (PowerWordFeast, "Restore this minion to full health at the end of this turn"),
-						Death_InfiltratorLilian: (InfiltratorLilian, "Deathrattle: Summon a 4/2 Forsaken Lilian that attacks a random enemy"),
-						Death_TotemGoliath: (TotemGoliath, "Deathrattle: Summon all four basic totems"),
-						Death_BonewebEgg: (BonewebEgg, "Deathrattle: Summon two 2/1 Spiders"),
-						Death_LordBarov: (LordBarov, "Deathrattle: Deal 1 damage to all minions"),
-						}
 
 Academy_Cards = [
 		#Neutral

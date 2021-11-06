@@ -1444,7 +1444,9 @@ class Minion(Card):
 		target, effOwnerObj = None, effOwnerType(self.Game, self.ID)
 		if effOwnerObj.needTarget() and (targets := effOwnerType.findTargets(self)):
 			target = numpyChoice(targets)
-		self.Game.eventinGUI(effOwnerObj, "Battlecry", target=target)
+		if self.Game.GUI:
+			self.Game.GUI.showOffBoardTrig(effOwnerObj)
+			self.Game.eventinGUI(effOwnerObj, "Battlecry", target=target)
 		effOwnerType.whenEffective(self, target, comment="byOthers")
 
 	# 沉默时随从的身材的变化原则：

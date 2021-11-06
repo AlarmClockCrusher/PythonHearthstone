@@ -488,11 +488,11 @@ class Aura_Conditional(Aura_AlwaysOn):
 
 #targets = "All" for now
 class GameAura_AlwaysOn:
-	card, attGain, healthGain, effGain, counter = None, 0, 0, '', 0
+	cardType, attGain, healthGain, effGain, counter = None, 0, 0, '', 0
 	def __init__(self, Game, ID, attGain=0, healthGain=0, effGain=''):
 		self.Game, self.ID, self.receivers = Game, ID, []
 		self.on, auraType = True, type(self)
-		self.card, self.counter = auraType.card(Game, ID), auraType.counter
+		self.card, self.counter = auraType.cardType(Game, ID), auraType.counter
 		self.attGain, self.healthGain, self.effGain = auraType.attGain, auraType.healthGain, auraType.effGain
 
 	def applicable(self, target): return True
@@ -559,10 +559,10 @@ class GameRuleAura:
  			#需要connect并加入回合结束的 "Conn&TurnEnd"
 			#需要connect但不加入回合开始或结束的 "Conn"
 class TrigEffect:
-	card, signals, counter, trigType, animate = None, (), 0, "Conn&TrigAura", True
+	cardType, signals, counter, trigType, animate = None, (), 0, "Conn&TrigAura", True
 	def __init__(self, Game, ID):
 		self.Game, self.ID = Game, ID
-		self.card, self.counter = type(self).card(Game, ID), type(self).counter
+		self.card, self.counter = type(self).cardType(Game, ID), type(self).counter
 		self.savedObj, self.savedObjs = None, []
 
 	def connect(self):
@@ -689,12 +689,12 @@ class ManaAura:
 
 #TempManaEffects are supposed be single-usage. If self.temporary, then it expires at the end of turn.
 class GameManaAura_OneTime:
-	card, signals, by, to, targets = None, (), 0, -1, "Hand"
+	cardType, signals, by, to, targets = None, (), 0, -1, "Hand"
 	counter, temporary, nextTurn = 1, True, False
 	def __init__(self, Game, ID):
 		self.Game, self.ID, self.receivers = Game, ID, []
 		effectType = type(self)
-		self.card, self.counter = effectType.card(Game, ID), effectType.counter
+		self.card, self.counter = effectType.cardType(Game, ID), effectType.counter
 		self.by, self.to = effectType.by, effectType.to
 		self.temporary, self.on = effectType.temporary, True #有只存在一回合的临时光环，也有直到一定条件触发时才消失的光环，如自然研习
 		#"Hand" or "Power"

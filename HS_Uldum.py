@@ -1,4 +1,3 @@
-from Parts_ConstsFuncsImports import *
 from Parts_CardTypes import *
 from Parts_TrigsAuras import *
 
@@ -45,22 +44,27 @@ class Aura_Vessina(Aura_Conditional):
 
 """Deathrattles"""
 class Death_JarDealer(Deathrattle_Minion):
+	description = "Deathrattle: Add a random 1-cost minion to your hand"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.addCardtoHand(numpyChoice(self.rngPool("1-Cost Minions")), self.keeper.ID)
 
 class Death_KoboldSandtrooper(Deathrattle_Minion):
+	description = "Deathrattle: Deal 3 damage to the enemy hero"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.dealsDamage(self.keeper.Game.heroes[3 - self.keeper.ID], 3)
 
 class Death_SerpentEgg(Deathrattle_Minion):
+	description = "Deathrattle: Summon a 3/4 Sea Serpent"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.summon(SeaSerpent(self.keeper.Game, self.keeper.ID))
 
 class Death_InfestedGoblin(Deathrattle_Minion):
+	description = "Deathrattle: Add two 1/1 Scarabs with Taunt to your hand"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.addCardtoHand([Scarab_Uldum, Scarab_Uldum], self.keeper.ID)
 
 class Death_BlatantDecoy(Deathrattle_Minion):
+	description = "Deathrattle: Each player summons the lowest Cost minion from their hand"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		minion = self.keeper
 		for ID in (1, 2):
@@ -69,33 +73,40 @@ class Death_BlatantDecoy(Deathrattle_Minion):
 				minion.Game.summonfrom(numpyChoice(indices), ID, -1, summoner=minion, source='H')
 
 class Death_KhartutDefender(Deathrattle_Minion):
+	description = "Deathrattle: Restore 4 Health to your hero"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.restoresHealth(self.keeper.Game.heroes[self.keeper.ID], self.keeper.calcHeal(4))
 
 class Death_Octosari(Deathrattle_Minion):
+	description = "Deathrattle: Draw 8 cards"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		for i in range(8): self.keeper.Game.Hand_Deck.drawCard(self.keeper.ID)
 
 class Death_AnubisathWarbringer(Deathrattle_Minion):
+	description = "Deathrattle: Give all minions in your hand +3/+3"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.AOE_GiveEnchant([card for card in self.keeper.Game.Hand_Deck.hands[self.keeper.ID] if card.category == "Minion"],
 									3, 3, name=AnubisathWarbringer, add2EventinGUI=False)
 		
 class Death_SalhetsPride(Deathrattle_Minion):
+	description = "Deathrattle: Draw two 1-Health minions from your deck"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		for _ in (0, 1):
 			if not self.keeper.drawCertainCard(lambda card: card.category == "Minion" and card.health == 1)[0]: break
 
 class Death_Grandmummy(Deathrattle_Minion):
+	description = "Deathrattle: Give a random friendly minion +1/+1"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		if minions := self.keeper.Game.minionsonBoard(self.keeper.ID): self.keeper.giveEnchant(numpyChoice(minions), 1, 1, name=Grandmummy)
 
 class Death_SahketSapper(Deathrattle_Minion):
+	description = "Deathrattle: Return a random enemy minion to your opponent's hand"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		minions = self.keeper.Game.minionsonBoard(3 - self.keeper.ID)
 		if minions: self.keeper.Game.returnObj2Hand(numpyChoice(minions))  # minion是在场上的，所以不需要询问是否保留亡语注册
 
 class Death_ExpiredMerchant(Deathrattle_Minion):
+	description = "Deathrattle: Add 2 copies of discarded cards to your hand"
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		if self.savedObj: self.keeper.addCardtoHand([self.savedObj]*2, self.keeper.ID)
 
@@ -456,7 +467,63 @@ class Trig_ArmoredGoon(TrigBoard):
 	def effect(self, signal, ID, subject, target, number, comment, choice=0):
 		self.keeper.giveHeroAttackArmor(self.keeper.ID, armor=5)
 		
-		
+
+
+"""Game TrigEffects and game auras"""
+class HeartofVirnaal_Effect(TrigEffect):
+	trigType = "TurnEnd&OnlyKeepOne"
+	def trigEffect(self): self.Game.effects[self.ID]["Battlecry x2"] -= 1
+
+class YourLackeysareAlways44(GameAura_AlwaysOn):
+	def __init__(self, Game, ID):
+		super().__init__(None, (), )
+		self.Game, self.ID = Game, ID
+		self.signals, self.receivers = ["MinionAppears", "CardEntersHand"], []
+
+	def applicable(self, target):
+		return target.ID == self.ID and target.name.endswith("Lackey")
+
+	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
+		if signal[0] == 'M':  # "MinionAppears" #只有随从在从其他位置进入场上的时候可以进行修改，而从休眠中苏醒或者控制权改变不会触发改变
+			return comment and self.applicable(subject)
+		elif signal[0] == 'C':
+			return self.applicable(target[0])  # The target here is a holder
+
+	# else: #signal == "CardShuffled"
+	#	if isinstance(target, (list, ndarray)):
+	#		for card in target:
+	#			self.applicable(card)
+	#	else: #Shuffling a single card
+	#		return self.applicable(target)
+
+	def effect(self, signal, ID, subject, target, number, comment, choice=0):
+		if signal == "MinionAppears":
+			self.applies(subject)
+		elif signal == "CardEntersHand":
+			self.applies(target[0])
+
+	# else: #signal == "CardShuffled"
+	#	self.applies(target)
+
+	def applies(self, subject):
+		if self.applicable(subject) and (subject.attack_0 != 4 or subject.health_0 != 4):
+			subject.attack_0, subject.health_0 = 4, 4  # 需要先把随从的白字身材变为4/4
+			self.card.setStat(subject, 4, 4, name=DarkPharaohTekahn)
+
+	# 暂时假设跟班被对方控制后仍为4/4
+	def auraAppears(self):
+		game = self.Game
+		if not any(isinstance(obj, YourLackeysareAlways44) for obj in game.trigAuras[self.ID]):
+			game.trigAuras[self.ID].append(self)
+			for card in game.minionsonBoard(self.ID) + game.Hand_Deck.hands[self.ID] + game.Hand_Deck.decks[self.ID]:
+				self.applies(card)
+			for sig in self.signals:
+				try: game.trigsBoard[self.ID][sig].insert(0, self)  # 假设这种光环总是添加到最前面，保证它可以在其他的普通光环生效之前作用
+				except: game.trigsBoard[self.ID][sig] = [self]
+
+
+"""Cards"""
+"""Neutral cards"""
 class BeamingSidekick(Minion):
 	Class, race, name = "Neutral", "", "Beaming Sidekick"
 	mana, attack, health = 1, 1, 2
@@ -1505,8 +1572,8 @@ class AncientMysteries(Spell):
 	description = "Draw a Secret from your deck. It costs (0)"
 	name_CN = "远古谜团"
 	def whenEffective(self, target=None, comment="", choice=0, posinHand=-2):
-		card, mana, entersHand = self.drawCertainCard(lambda card: card.race == "Secret")
-		if entersHand: ManaMod(card, to=0).applies()
+		secret, mana, entersHand = self.drawCertainCard(lambda card: card.race == "Secret")
+		if entersHand: ManaMod(secret, to=0).applies()
 		
 		
 class FlameWard(Secret):
@@ -2593,59 +2660,23 @@ class TombWarden(Minion):
 		self.summon(minion)
 		
 
-"""Game TrigEffects and game auras"""
-class HeartofVirnaal_Effect(TrigEffect):
-	card, trigType = HeartofVirnaal, "TurnEnd&OnlyKeepOne"
-	def trigEffect(self): self.Game.effects[self.ID]["Battlecry x2"] -= 1
 
+Death_JarDealer.cardType = JarDealer
+Death_KoboldSandtrooper.cardType = KoboldSandtrooper
+Death_SerpentEgg.cardType = SerpentEgg
+Death_InfestedGoblin.cardType = InfestedGoblin
+Death_BlatantDecoy.cardType = BlatantDecoy
+Death_KhartutDefender.cardType = KhartutDefender
+Death_Octosari.cardType = Octosari
+Death_AnubisathWarbringer.cardType = AnubisathWarbringer
+Death_SalhetsPride.cardType = SalhetsPride
+Death_Grandmummy.cardType = Grandmummy
+Death_SahketSapper.cardType = SahketSapper
+Death_ExpiredMerchant.cardType = ExpiredMerchant
 
-class YourLackeysareAlways44(GameAura_AlwaysOn):
-	card = DarkPharaohTekahn
-	def __init__(self, Game, ID):
-		super().__init__(None, (), )
-		self.Game, self.ID = Game, ID
-		self.signals, self.receivers = ["MinionAppears", "CardEntersHand"], []
+HeartofVirnaal_Effect.cardType = HeartofVirnaal
+YourLackeysareAlways44.cardType = DarkPharaohTekahn
 
-	def applicable(self, target):
-		return target.ID == self.ID and target.name.endswith("Lackey")
-
-	def canTrig(self, signal, ID, subject, target, number, comment, choice=0):
-		if signal[0] == 'M':  # "MinionAppears" #只有随从在从其他位置进入场上的时候可以进行修改，而从休眠中苏醒或者控制权改变不会触发改变
-			return comment and self.applicable(subject)
-		elif signal[0] == 'C':
-			return self.applicable(target[0])  # The target here is a holder
-
-	# else: #signal == "CardShuffled"
-	#	if isinstance(target, (list, ndarray)):
-	#		for card in target:
-	#			self.applicable(card)
-	#	else: #Shuffling a single card
-	#		return self.applicable(target)
-
-	def effect(self, signal, ID, subject, target, number, comment, choice=0):
-		if signal == "MinionAppears":
-			self.applies(subject)
-		elif signal == "CardEntersHand":
-			self.applies(target[0])
-
-	# else: #signal == "CardShuffled"
-	#	self.applies(target)
-
-	def applies(self, subject):
-		if self.applicable(subject) and (subject.attack_0 != 4 or subject.health_0 != 4):
-			subject.attack_0, subject.health_0 = 4, 4  # 需要先把随从的白字身材变为4/4
-			self.card.setStat(subject, 4, 4, name=DarkPharaohTekahn)
-
-	# 暂时假设跟班被对方控制后仍为4/4
-	def auraAppears(self):
-		game = self.Game
-		if not any(isinstance(obj, YourLackeysareAlways44) for obj in game.trigAuras[self.ID]):
-			game.trigAuras[self.ID].append(self)
-			for card in game.minionsonBoard(self.ID) + game.Hand_Deck.hands[self.ID] + game.Hand_Deck.decks[self.ID]:
-				self.applies(card)
-			for sig in self.signals:
-				try: game.trigsBoard[self.ID][sig].insert(0, self)  # 假设这种光环总是添加到最前面，保证它可以在其他的普通光环生效之前作用
-				except: game.trigsBoard[self.ID][sig] = [self]
 
 
 Uldum_Cards = [
@@ -2724,18 +2755,3 @@ Uldum_Cards_Collectible = [
 		HacktheSystem, IntotheFray, FrightenedFlunky, BloodswornMercenary, LivewireLance, RestlessMummy, PlagueofWrath,
 		Armagedillo, ArmoredGoon, TombWarden,
 ]
-
-
-TrigsDeaths_Uldum = {Death_JarDealer: (JarDealer, "Deathrattle: Add a random 1-cost minion to your hand"),
-					Death_KoboldSandtrooper: (KoboldSandtrooper, "Deathrattle: Deal 3 damage to the enemy hero"),
-					Death_SerpentEgg: (SerpentEgg, "Deathrattle: Summon a 3/4 Sea Serpent"),
-					Death_InfestedGoblin: (InfestedGoblin, "Deathrattle: Add two 1/1 Scarabs with Taunt to your hand"),
-					Death_BlatantDecoy: (BlatantDecoy, "Deathrattle: Each player summons the lowest Cost minion from their hand"),
-					Death_KhartutDefender: (KhartutDefender, "Deathrattle: Restore 4 Health to your hero"),
-					Death_Octosari: (Octosari, "Deathrattle: Draw 8 cards"),
-					Death_AnubisathWarbringer: (AnubisathWarbringer, "Deathrattle: Give all minions in your hand +3/+3"),
-					Death_SalhetsPride: (SalhetsPride, "Deathrattle: Draw two 1-Health minions from your deck"),
-					Death_Grandmummy: (Grandmummy, "Deathrattle: Give a random friendly minion +1/+1"),
-					Death_SahketSapper: (SahketSapper, "Deathrattle: Return a random enemy minion to your opponent's hand"),
-					Death_ExpiredMerchant: (ExpiredMerchant, "Deathrattle: Add 2 copies of discarded cards to your hand"),
-					}
