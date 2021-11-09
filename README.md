@@ -13,6 +13,7 @@ A simulation of Hearthstone, written in Python 3.8 and exploiting Panda3D, an op
 Configuration: Install Python 3.8 (**Include Python into the Environmental Variable**), then download this project. **Windows user can run ConfigureEnvironment.bat**, which automatically installs the necessary packages for running. **Then double click or use Command Line to run Run_1PGame.py**
 
 **运行Run_GetUpdates.py来获得更新**，与最新版本保持同步
+
 **Run Run_GetUpdates.py to get updates**
 
 ![Overview](https://user-images.githubusercontent.com/61217720/140857445-60fb8929-4d6e-44de-b657-a0545e9e4263.png)
